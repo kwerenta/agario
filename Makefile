@@ -12,7 +12,7 @@ CLIENT_SOURCES := $(wildcard $(CLIENT_DIR)/*.c)
 all: client server
 
 client:
-	$(CC) $(CFLAGS) $(CLIENT_SOURCES) -o client.o
+	$(CC) $(CFLAGS) -I/opt/homebrew/include -L/opt/homebrew/lib -lSDL2 $(CLIENT_SOURCES) -o client.o
 
 server:
 	$(CC) $(CFLAGS) $(SERVER_SOURCES) -o server.o

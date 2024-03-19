@@ -6,6 +6,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "draw.h"
+#include "ui.h"
+
 #define PORT 2002
 
 int main() {
@@ -37,5 +40,22 @@ int main() {
 
   close(fd);
 
+  App app;
+  SDL_Event event;
+  int is_running = 1;
+
+  init_app(&app);
+
+  draw_rectangle(app.screen, 100, 100, 100, 100, app.colors[RED]);
+  update_screen(&app);
+
+  while (is_running) {
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_QUIT)
+        is_running = 0;
+    }
+  }
+
+  close_app(&app);
   return 0;
 }

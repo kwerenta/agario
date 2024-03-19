@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #define SERVER_PORT 2002
-#define MAX_PLAYERS 2
+#define MAX_PLAYERS 1
 
 typedef struct client {
   int cfd;
@@ -54,6 +54,7 @@ int main() {
       perror("failed to create thread for client");
     }
 
+    printf("client connected\n");
     client_count++;
   }
 
@@ -75,12 +76,13 @@ void *handle_connection(void *cfd_ptr) {
     snprintf(buf, sizeof(buf), "%d,%d", x, y);
     send(cfd, buf, strlen(buf) + 1, 0);
     sleep(1);
-    x += 10;
-    y += 10;
+    x++;
+    y++;
 
-    if (y >= 150)
+    if (x == 9)
       break;
   }
 
+  printf("stopped handling connection\n");
   return NULL;
 }

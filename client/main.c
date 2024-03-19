@@ -28,34 +28,33 @@ int main() {
     return 1;
   }
 
-  char buffer[1024];
-  while (1) {
-    scanf("%1023s", buffer);
-
-    if (strcmp(buffer, "stop") == 0)
-      break;
-
-    send(fd, buffer, strlen(buffer) + 1, 0);
-  }
-
-  close(fd);
-
   App app;
   SDL_Event event;
   int is_running = 1;
 
-  init_app(&app);
+  int x = 100, y = 100;
+  char buffer[1024];
 
-  draw_rectangle(app.screen, 100, 100, 100, 100, app.colors[RED]);
-  update_screen(&app);
+  init_app(&app);
 
   while (is_running) {
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT)
         is_running = 0;
     }
+
+    SDL_FillRect(app.screen, NULL, app.colors[BLACK]);
+    draw_rectangle(app.screen, x, y, 100, 100, app.colors[RED]);
+    update_screen(&app);
+
+    if (recv(fd, buffer, sizeof(buffer), 0) > 0) {
+      sscanf(buffer, "%d,%d", &x, &y);
+    } else {
+      is_running = 0;
+    }
   }
 
   close_app(&app);
+  close(fd);
   return 0;
 }

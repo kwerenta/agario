@@ -69,8 +69,17 @@ void *handle_connection(void *cfd_ptr) {
   int cfd = *((int *)cfd_ptr);
 
   char buf[1024];
-  while (recv(cfd, buf, sizeof(buf), 0) > 0) {
-    printf("Client message:\n    %s\n", buf);
+  int x = 0, y = 0;
+
+  while (1) {
+    snprintf(buf, sizeof(buf), "%d,%d", x, y);
+    send(cfd, buf, strlen(buf) + 1, 0);
+    sleep(1);
+    x += 10;
+    y += 10;
+
+    if (y >= 150)
+      break;
   }
 
   return NULL;

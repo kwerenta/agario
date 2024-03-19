@@ -3,9 +3,9 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
-#define COLORS_COUNT 2
+#define COLORS_COUNT 3
 
-typedef enum Colors { RED, WHITE } Colors;
+typedef enum Colors { RED, WHITE, BLACK } Colors;
 
 typedef struct App {
   SDL_Renderer *renderer;

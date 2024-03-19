@@ -31,6 +31,7 @@ int init_app(App *app) {
 void init_colors(App *app) {
   app->colors[RED] = SDL_MapRGB(app->screen->format, 0xE9, 0x46, 0x39);
   app->colors[WHITE] = SDL_MapRGB(app->screen->format, 0xF2, 0xF2, 0xF6);
+  app->colors[BLACK] = SDL_MapRGB(app->screen->format, 0x00, 0x00, 0x00);
 }
 
 void update_screen(App *app) {

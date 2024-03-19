@@ -1,12 +1,22 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #define SERVER_PORT 2002
+#define MAX_PLAYERS 2
+
+typedef struct client {
+  int cfd;
+  pthread_t thread;
+} client_t;
+
+void *handle_connection(void *cfd);
 
 int main() {
   const int fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -32,13 +42,36 @@ int main() {
 
   struct sockaddr_storage caddr;
   socklen_t caddr_len = sizeof(caddr);
-  const int cfd = accept(fd, (struct sockaddr *)&caddr, &caddr_len);
+
+  client_t clients[MAX_PLAYERS] = {};
+  int client_count = 0;
+
+  while (client_count < MAX_PLAYERS) {
+    int cfd = accept(fd, (struct sockaddr *)&caddr, &caddr_len);
+    clients[client_count].cfd = cfd;
+
+    if (pthread_create(&clients[client_count].thread, NULL, handle_connection, &cfd)) {
+      perror("failed to create thread for client");
+    }
+
+    client_count++;
+  }
+
+  for (int i = 0; i < MAX_PLAYERS; i++) {
+    pthread_join(clients[i].thread, NULL);
+    close(clients[i].cfd);
+  }
+
+  close(fd);
+}
+
+void *handle_connection(void *cfd_ptr) {
+  int cfd = *((int *)cfd_ptr);
 
   char buf[1024];
-  recv(cfd, buf, sizeof(buf), 0);
+  while (recv(cfd, buf, sizeof(buf), 0) > 0) {
+    printf("Client message:\n    %s\n", buf);
+  }
 
-  printf("Client message:\n    %s\n", buf);
-
-  close(cfd);
-  close(fd);
+  return NULL;
 }

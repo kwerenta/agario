@@ -26,8 +26,14 @@ int main() {
   }
 
   char buffer[1024];
-  scanf("%1023s", buffer);
-  send(fd, buffer, strlen(buffer) + 1, 0);
+  while (1) {
+    scanf("%1023s", buffer);
+
+    if (strcmp(buffer, "stop") == 0)
+      break;
+
+    send(fd, buffer, strlen(buffer) + 1, 0);
+  }
 
   close(fd);
 

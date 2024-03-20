@@ -28,7 +28,7 @@ void *socket_worker(void *worker_args) {
   char buffer[1024];
   SocketWorkerArgs *args = ((SocketWorkerArgs *)worker_args);
 
-  while (recv(args->fd, buffer, sizeof(buffer), 0) > 0) {
+  while (recv(args->fd, buffer, sizeof(buffer), 0) > 0 && args->is_running == 1) {
     if (sscanf(buffer, "P0,%d,%d,P1,%d,%d", &args->players[0].x, &args->players[0].y, &args->players[1].x,
                &args->players[1].y) != 4)
       break;
@@ -79,8 +79,10 @@ int main() {
     update_screen(&app);
 
     while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_QUIT)
+      if (event.type == SDL_QUIT) {
         is_running = 0;
+        worker_args.is_running = 0;
+      }
     }
   }
 

@@ -53,8 +53,8 @@ void *handle_connection(void *p_client) {
   char buf[1024];
 
   while (1) {
-    snprintf(buf, sizeof(buf), "P0,%d,%d,P1,%d,%d", client->position->x, client->position->y, 15 - client->position->x,
-             10 - client->position->y);
+    snprintf(buf, sizeof(buf), "P0,%hd,%hd,P1,%hd,%hd", client->position->x, client->position->y,
+             (uint16_t)(15 - client->position->x), (uint16_t)(10 - client->position->y));
     send(client->client_fd, buf, strlen(buf) + 1, 0);
     sleep(1);
 

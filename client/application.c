@@ -1,6 +1,8 @@
-#include "ui.h"
+#include "draw.h"
 
-int init_app(App *app) {
+#include "application.h"
+
+int initialize_application(Application *app) {
   if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
     printf("SDL_Init error: %s\n", SDL_GetError());
     return 0;
@@ -23,24 +25,31 @@ int init_app(App *app) {
   app->screenTexture = SDL_CreateTexture(app->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
                                          SCREEN_WIDTH, SCREEN_HEIGHT);
 
-  init_colors(app);
+  initialize_colors(app);
 
   return 1;
 }
 
-void init_colors(App *app) {
+void initialize_colors(Application *app) {
   app->colors[RED] = SDL_MapRGB(app->screen->format, 0xE9, 0x46, 0x39);
   app->colors[WHITE] = SDL_MapRGB(app->screen->format, 0xF2, 0xF2, 0xF6);
   app->colors[BLACK] = SDL_MapRGB(app->screen->format, 0x00, 0x00, 0x00);
 }
 
-void update_screen(App *app) {
+void update_screen(Application *app) {
   SDL_UpdateTexture(app->screenTexture, NULL, app->screen->pixels, app->screen->pitch);
   SDL_RenderCopy(app->renderer, app->screenTexture, NULL, NULL);
   SDL_RenderPresent(app->renderer);
 }
 
-void close_app(App *app) {
+void render_players(Application *app, GameState *game) {
+  for (int i = 0; i < MAX_PLAYERS; i++) {
+    Color color = i % 2 ? RED : WHITE;
+    draw_rectangle(app->screen, game->players[i].x * 10, game->players[i].y * 10, 100, 100, app->colors[color]);
+  }
+}
+
+void close_app(Application *app) {
   SDL_FreeSurface(app->screen);
   SDL_DestroyTexture(app->screenTexture);
   SDL_DestroyRenderer(app->renderer);

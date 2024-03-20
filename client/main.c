@@ -11,11 +11,16 @@
 #include "ui.h"
 
 #define PORT 2002
+#define MAX_PLAYERS 2
+
+typedef struct Player {
+  int x;
+  int y;
+} Player;
 
 typedef struct SocketWorkerArgs {
   int fd;
-  int x;
-  int y;
+  Player players[MAX_PLAYERS];
   int is_running;
 } SocketWorkerArgs;
 
@@ -24,7 +29,8 @@ void *socket_worker(void *worker_args) {
   SocketWorkerArgs *args = ((SocketWorkerArgs *)worker_args);
 
   while (recv(args->fd, buffer, sizeof(buffer), 0) > 0) {
-    if (sscanf(buffer, "%d,%d", &args->x, &args->y) != 2)
+    if (sscanf(buffer, "P0,%d,%d,P1,%d,%d", &args->players[0].x, &args->players[0].y, &args->players[1].x,
+               &args->players[1].y) != 4)
       break;
   }
 
@@ -54,7 +60,7 @@ int main() {
   SDL_Event event;
   int is_running = 1;
 
-  SocketWorkerArgs worker_args = {.fd = fd, .x = 100, .y = 100, .is_running = 1};
+  SocketWorkerArgs worker_args = {.fd = fd, .players = {{.x = 5, .y = 2}, {.x = 10, .y = 8}}, .is_running = 1};
 
   pthread_t thread;
   pthread_create(&thread, NULL, socket_worker, &worker_args);
@@ -62,18 +68,20 @@ int main() {
   init_app(&app);
 
   while (is_running) {
-    while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_QUIT)
-        is_running = 0;
-    }
-
     if (worker_args.is_running == 0) {
       is_running = 0;
     }
 
     SDL_FillRect(app.screen, NULL, app.colors[BLACK]);
-    draw_rectangle(app.screen, worker_args.x * 20, worker_args.y * 20, 100, 100, app.colors[RED]);
+    draw_rectangle(app.screen, worker_args.players[0].x * 20, worker_args.players[0].y * 20, 100, 100, app.colors[RED]);
+    draw_rectangle(app.screen, worker_args.players[1].x * 20, worker_args.players[1].y * 20, 100, 100,
+                   app.colors[WHITE]);
     update_screen(&app);
+
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_QUIT)
+        is_running = 0;
+    }
   }
 
   pthread_join(thread, NULL);

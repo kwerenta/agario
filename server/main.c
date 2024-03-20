@@ -9,14 +9,21 @@
 #include <unistd.h>
 
 #define SERVER_PORT 2002
-#define MAX_PLAYERS 1
+#define MAX_PLAYERS 2
+
+typedef struct Position {
+  int x;
+  int y;
+} Position;
 
 typedef struct client {
   int cfd;
+  Position *position;
   pthread_t thread;
 } client_t;
 
-void *handle_connection(void *cfd);
+void *handle_connection(void *p_client);
+void *update_position(void *p_position);
 
 int main() {
   const int fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -46,17 +53,24 @@ int main() {
   client_t clients[MAX_PLAYERS] = {};
   int client_count = 0;
 
+  Position position = {.x = 0, .y = 0};
+
   while (client_count < MAX_PLAYERS) {
     int cfd = accept(fd, (struct sockaddr *)&caddr, &caddr_len);
     clients[client_count].cfd = cfd;
+    clients[client_count].position = &position;
 
-    if (pthread_create(&clients[client_count].thread, NULL, handle_connection, &cfd)) {
+    if (pthread_create(&clients[client_count].thread, NULL, handle_connection, &clients[client_count])) {
       perror("failed to create thread for client");
     }
 
-    printf("client connected\n");
+    printf("client %d connected\n", client_count);
     client_count++;
   }
+
+  pthread_t position_thread;
+  pthread_create(&position_thread, NULL, update_position, &position);
+  pthread_join(position_thread, NULL);
 
   for (int i = 0; i < MAX_PLAYERS; i++) {
     pthread_join(clients[i].thread, NULL);
@@ -66,20 +80,29 @@ int main() {
   close(fd);
 }
 
-void *handle_connection(void *cfd_ptr) {
-  int cfd = *((int *)cfd_ptr);
+void *update_position(void *p_position) {
+  Position *position = (Position *)p_position;
+  while (position->x <= 15) {
+    position->x++;
+    position->y++;
+    sleep(1);
+  }
+
+  return NULL;
+}
+
+void *handle_connection(void *p_client) {
+  client_t client = *((client_t *)p_client);
 
   char buf[1024];
-  int x = 0, y = 0;
 
   while (1) {
-    snprintf(buf, sizeof(buf), "%d,%d", x, y);
-    send(cfd, buf, strlen(buf) + 1, 0);
+    snprintf(buf, sizeof(buf), "P0,%d,%d,P1,%d,%d", client.position->x, client.position->y, 15 - client.position->x,
+             10 - client.position->y);
+    send(client.cfd, buf, strlen(buf) + 1, 0);
     sleep(1);
-    x++;
-    y++;
 
-    if (x == 9)
+    if (client.position->x >= 15)
       break;
   }
 

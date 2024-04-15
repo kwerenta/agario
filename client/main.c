@@ -28,6 +28,8 @@ int main() {
 
   initialize_application(&app);
 
+  u8 message[2] = {0, 5};
+
   while (is_running) {
     // Close application if client lose connection with server
     if (state.is_connected == 0) {
@@ -39,7 +41,11 @@ int main() {
     update_screen(&app);
 
     while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_QUIT) {
+      if (event.type == SDL_KEYDOWN) {
+        if (event.key.keysym.sym == SDLK_SPACE) {
+          send(fd, message, sizeof(message), 0);
+        }
+      } else if (event.type == SDL_QUIT) {
         is_running = 0;
         state.is_connected = 0;
         break;

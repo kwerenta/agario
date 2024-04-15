@@ -4,8 +4,14 @@
 #include "../shared/config.h"
 #include "../shared/types.h"
 
+typedef struct {
+  u32 color;
+  Position position;
+  u32 score;
+} Player;
+
 typedef struct GameState {
-  Position players[MAX_PLAYERS];
+  Player players[MAX_PLAYERS];
 } GameState;
 
 void initialize_game_state(GameState *game);

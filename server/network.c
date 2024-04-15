@@ -44,35 +44,31 @@ void accept_player(const int server_fd, Player *player, i32 index) {
                      .socket = client_fd,
                      .score = 0};
 
-  // if (pthread_create(client_thread, NULL, handle_connection, client)) {
-  //   perror("failed to create thread for client");
-  // }
+  if (pthread_create(&player->thread, NULL, player_data_receiver, player)) {
+    perror("failed to create thread for client");
+  }
 
   printf("Client connected from %s on port %d\n", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
 }
 
-// void *handle_connection(void *p_client) {
-//   Client *client = (Client *)p_client;
+void *player_data_receiver(void *p_receiver_params) {
+  Player *player = (Player *)p_receiver_params;
+  u8 buf[2];
 
-//   char buf[1024];
+  // TEMP: Fixed message size
+  while (recv(player->socket, buf, sizeof(buf), 0) == sizeof(buf)) {
+    if (buf[0] == 0 && buf[1] == 5) {
+      player->score += 1;
+    }
+  }
 
-//   while (1) {
-//     snprintf(buf, sizeof(buf), "P0,%hd,%hd,P1,%hd,%hd", client->position->x, client->position->y,
-//              (uint16_t)(15 - client->position->x), (uint16_t)(10 - client->position->y));
-//     send(client->client_fd, buf, strlen(buf) + 1, 0);
-//     sleep(1);
-
-//     if (client->position->x >= 15)
-//       break;
-//   }
-
-//   printf("Stopped handling connection\n");
-//   return NULL;
-// }
+  printf("Stopped handling connection\n");
+  return NULL;
+}
 
 void *handle_game_update(void *p_state) {
   State *state = (State *)p_state;
-  char buf[64];
+  char buf[1024];
 
   clock_t start;
   struct timespec ts;
@@ -100,8 +96,9 @@ void *handle_game_update(void *p_state) {
     }
 
     for (int i = 0; i < state->player_count; i++) {
-      snprintf(buf, sizeof(buf), "P0,%f,%f,P1,%f,%f", state->players[0].position.x, state->players[0].position.y,
-               state->players[1].position.x, state->players[1].position.y);
+      snprintf(buf, sizeof(buf), "P,%f,%f,%d,P,%f,%f,%d", state->players[0].position.x, state->players[0].position.y,
+               state->players[0].score, state->players[1].position.x, state->players[1].position.y,
+               state->players[1].score);
       send(state->players[i].socket, buf, strlen(buf) + 1, 0);
     }
   }

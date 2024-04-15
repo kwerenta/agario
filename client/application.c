@@ -45,7 +45,9 @@ void update_screen(Application *app) {
 void render_players(Application *app, GameState *game) {
   for (int i = 0; i < MAX_PLAYERS; i++) {
     Color color = i % 2 ? RED : WHITE;
-    draw_rectangle(app->screen, game->players[i].x, game->players[i].y, 100, 100, app->colors[color]);
+    int size = 50 + game->players[i].score * 10;
+    draw_rectangle(app->screen, game->players[i].position.x, game->players[i].position.y, size, size,
+                   app->colors[color]);
   }
 }
 

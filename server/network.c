@@ -68,7 +68,7 @@ void *player_data_receiver(void *p_receiver_params) {
 
 void *handle_game_update(void *p_state) {
   State *state = (State *)p_state;
-  char buf[1024];
+  u8 buffer[1024];
 
   clock_t start;
   struct timespec ts;
@@ -96,12 +96,35 @@ void *handle_game_update(void *p_state) {
     }
 
     for (int i = 0; i < state->player_count; i++) {
-      snprintf(buf, sizeof(buf), "P,%f,%f,%d,P,%f,%f,%d", state->players[0].position.x, state->players[0].position.y,
-               state->players[0].score, state->players[1].position.x, state->players[1].position.y,
-               state->players[1].score);
-      send(state->players[i].socket, buf, strlen(buf) + 1, 0);
+      serialize_message(buffer, state, i);
+      send(state->players[i].socket, buffer, (state->player_count - 1) * 16 + 16, 0);
     }
   }
 
   return NULL;
+}
+
+void serialize_message(u8 *buffer, State *state, int current_player) {
+  // Header
+  buffer[0] = 0;
+
+  buffer[1] = state->player_count;
+  buffer[2] = state->balls_count;
+
+  buffer[4] = state->players[current_player].position.x;
+  buffer[8] = state->players[current_player].position.y;
+  buffer[12] = state->players[current_player].score;
+
+  int byte_offset = 0;
+  for (int i = 0; i < state->player_count; i++) {
+    if (i == current_player)
+      continue;
+
+    buffer[16 + byte_offset] = state->players[i].color;
+    buffer[20 + byte_offset] = state->players[i].position.x;
+    buffer[24 + byte_offset] = state->players[i].position.y;
+    buffer[28 + byte_offset] = state->players[i].score;
+
+    byte_offset += 16;
+  }
 }

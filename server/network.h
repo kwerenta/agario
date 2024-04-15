@@ -14,4 +14,6 @@ void accept_player(const int server_fd, Player *player, i32 index);
 void *player_data_receiver(void *p_client);
 void *handle_game_update(void *p_state);
 
+void serialize_message(u8 *buffer, State *state, int current_player);
+
 #endif

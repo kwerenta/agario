@@ -28,14 +28,27 @@ const int setup_connection() {
 }
 
 void *handle_connection(void *p_state) {
-  char buffer[BUFFER_SIZE];
+  u8 buffer[BUFFER_SIZE];
   State *state = (State *)p_state;
 
   while (recv(state->fd, buffer, sizeof(buffer), 0) > 0 && state->is_connected == 1) {
-    if (sscanf(buffer, "P,%f,%f,%d,P,%f,%f,%d", &state->game.players[0].position.x, &state->game.players[0].position.y,
-               &state->game.players[0].score, &state->game.players[1].position.x, &state->game.players[1].position.y,
-               &state->game.players[1].score) != 6)
-      break;
+    int byte_offset = 0;
+    for (int i = 0; i < (u8)buffer[1]; i++) {
+      if (i == 0) {
+        state->game.players[i].color = 0;
+        state->game.players[i].position.x = buffer[4];
+        state->game.players[i].position.y = buffer[8];
+        state->game.players[i].score = buffer[12];
+        continue;
+      }
+
+      state->game.players[i].color = buffer[16 + byte_offset];
+      state->game.players[i].position.x = buffer[20 + byte_offset];
+      state->game.players[i].position.y = buffer[24 + byte_offset];
+      state->game.players[i].score = buffer[28 + byte_offset];
+
+      byte_offset += 16;
+    }
   }
 
   state->is_connected = 0;

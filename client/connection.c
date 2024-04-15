@@ -32,7 +32,7 @@ void *handle_connection(void *p_state) {
   State *state = (State *)p_state;
 
   while (recv(state->fd, buffer, sizeof(buffer), 0) > 0 && state->is_connected == 1) {
-    if (sscanf(buffer, "P0,%hd,%hd,P1,%hd,%hd", &state->game.players[0].x, &state->game.players[0].y,
+    if (sscanf(buffer, "P0,%f,%f,P1,%f,%f", &state->game.players[0].x, &state->game.players[0].y,
                &state->game.players[1].x, &state->game.players[1].y) != 4)
       break;
   }

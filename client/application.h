@@ -14,7 +14,7 @@ typedef struct Application {
   SDL_Window *window;
   SDL_Surface *screen;
   SDL_Texture *screenTexture;
-  Uint32 colors[COLORS_COUNT];
+  u32 colors[COLORS_COUNT];
 } Application;
 
 int initialize_application(Application *app);

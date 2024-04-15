@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <pthread.h>
@@ -15,19 +16,27 @@ int main() {
     return 1;
 
   State state = {.player_count = 0, .balls_count = 0, .players = {0}, .balls = {0}};
+  u8 has_started = 0;
 
-  for (int i = 0; i < MAX_PLAYERS; i++) {
-    accept_player(server_fd, state.players + i, i);
+  srand(time(NULL));
+
+  pthread_t game_thread;
+
+  for (;;) {
+    accept_player(server_fd, state.players);
     state.player_count++;
+
+    if (has_started == 0) {
+      if (pthread_create(&game_thread, NULL, handle_game_update, &state)) {
+        perror("Failed to start game thread");
+        exit(1);
+      }
+      has_started = 1;
+    }
   }
 
-  printf("All players connected, starting game...\n");
-
-  pthread_t position_thread;
-  pthread_create(&position_thread, NULL, handle_game_update, &state);
-
   // Wait for game to end
-  pthread_join(position_thread, NULL);
+  pthread_join(game_thread, NULL);
   printf("Game has ended\n");
 
   // Wait for all players to disconnect

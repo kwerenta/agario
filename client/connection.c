@@ -32,22 +32,11 @@ void *handle_connection(void *p_state) {
   State *state = (State *)p_state;
 
   while (recv(state->fd, buffer, sizeof(buffer), 0) > 0 && state->is_connected == 1) {
-    int byte_offset = 0;
     for (int i = 0; i < (u8)buffer[1]; i++) {
-      if (i == 0) {
-        state->game.players[i].color = 0;
-        state->game.players[i].position.x = buffer[4];
-        state->game.players[i].position.y = buffer[8];
-        state->game.players[i].score = buffer[12];
-        continue;
-      }
-
-      state->game.players[i].color = buffer[16 + byte_offset];
-      state->game.players[i].position.x = buffer[20 + byte_offset];
-      state->game.players[i].position.y = buffer[24 + byte_offset];
-      state->game.players[i].score = buffer[28 + byte_offset];
-
-      byte_offset += 16;
+      state->game.players[i].color = ntohl(*((u32 *)(buffer + 4 + i * 16)));
+      state->game.players[i].position.x = buffer[8 + i * 16];
+      state->game.players[i].position.y = buffer[12 + i * 16];
+      state->game.players[i].score = ntohl(*((u32 *)(buffer + 16 + i * 16)));
     }
   }
 

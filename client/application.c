@@ -25,15 +25,7 @@ int initialize_application(Application *app) {
   app->screenTexture = SDL_CreateTexture(app->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
                                          SCREEN_WIDTH, SCREEN_HEIGHT);
 
-  initialize_colors(app);
-
   return 1;
-}
-
-void initialize_colors(Application *app) {
-  app->colors[RED] = SDL_MapRGB(app->screen->format, 0xE9, 0x46, 0x39);
-  app->colors[WHITE] = SDL_MapRGB(app->screen->format, 0xF2, 0xF2, 0xF6);
-  app->colors[BLACK] = SDL_MapRGB(app->screen->format, 0x00, 0x00, 0x00);
 }
 
 void update_screen(Application *app) {
@@ -44,10 +36,15 @@ void update_screen(Application *app) {
 
 void render_players(Application *app, GameState *game) {
   for (int i = 0; i < MAX_PLAYERS; i++) {
-    Color color = i % 2 ? RED : WHITE;
-    int size = 50 + game->players[i].score * 10;
-    draw_rectangle(app->screen, game->players[i].position.x, game->players[i].position.y, size, size,
-                   app->colors[color]);
+    Player player = game->players[i];
+
+    if (player.color == 0)
+      continue;
+
+    u32 color =
+        SDL_MapRGB(app->screen->format, player.color >> 24 & 0xFF, player.color >> 16 & 0xFF, player.color >> 8 & 0xFF);
+    int size = 50 + player.score * 10;
+    draw_rectangle(app->screen, player.position.x, player.position.y, size, size, color);
   }
 }
 

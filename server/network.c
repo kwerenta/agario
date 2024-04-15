@@ -2,8 +2,10 @@
 #include <math.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "../shared/config.h"
 
@@ -34,13 +36,29 @@ const int setup_server() {
   return fd;
 }
 
-void accept_player(const int server_fd, Player *player, i32 index) {
+void accept_player(const int server_fd, Player *players) {
   struct sockaddr_in client_addr;
   socklen_t client_addr_len = sizeof(client_addr);
 
   const int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-  *player = (Player){.color = index,
-                     .position = {.x = index == 0 ? 0 : 200, .y = index == 0 ? 0 : 200},
+
+  // TODO: Send error if server is full
+
+  // Find empty client_id
+  u8 client_id = 0;
+  for (int i = 0; i < MAX_PLAYERS; i++) {
+    if (players[i].socket == 0) {
+      client_id = i;
+      break;
+    }
+  }
+
+  Player *player = &players[client_id];
+
+  u32 color = (1 + rand() / ((RAND_MAX + 1u) / 0xFFFFFF)) << 8;
+
+  *player = (Player){.color = color,
+                     .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
                      .socket = client_fd,
                      .score = 0};
 
@@ -48,7 +66,7 @@ void accept_player(const int server_fd, Player *player, i32 index) {
     perror("failed to create thread for client");
   }
 
-  printf("Client connected from %s on port %d\n", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
+  printf("Client %s:%d connected to the server\n", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
 }
 
 void *player_data_receiver(void *p_receiver_params) {
@@ -62,22 +80,33 @@ void *player_data_receiver(void *p_receiver_params) {
     }
   }
 
-  printf("Stopped handling connection\n");
+  printf("Client disconencted from server\n");
+
   return NULL;
 }
 
 void *handle_game_update(void *p_state) {
+  printf("Game has started\n");
+
   State *state = (State *)p_state;
-  u8 buffer[1024];
+  u8 buffer[1024] = {0};
 
   clock_t start;
   struct timespec ts;
   f64 tick_time, time_diff;
 
   while (1) {
+    if (state->player_count == 0) {
+      printf("All players disconnected. Stopping game\n");
+      break;
+    }
+
     start = clock();
-    for (int i = 0; i < state->player_count; i++) {
-      if (i == 0) {
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+      if (state->players[i].socket == 0)
+        continue;
+
+      if (i % 2 == 0) {
         state->players[i].position.x += 0.5;
         state->players[i].position.y += 0.5;
       } else {
@@ -95,9 +124,12 @@ void *handle_game_update(void *p_state) {
       nanosleep(&ts, &ts);
     }
 
-    for (int i = 0; i < state->player_count; i++) {
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+      if (state->players[i].socket == 0)
+        continue;
+
       serialize_message(buffer, state, i);
-      send(state->players[i].socket, buffer, (state->player_count - 1) * 16 + 16, 0);
+      send(state->players[i].socket, buffer, state->player_count * 16 + 4, 0);
     }
   }
 
@@ -111,19 +143,15 @@ void serialize_message(u8 *buffer, State *state, int current_player) {
   buffer[1] = state->player_count;
   buffer[2] = state->balls_count;
 
-  buffer[4] = state->players[current_player].position.x;
-  buffer[8] = state->players[current_player].position.y;
-  buffer[12] = state->players[current_player].score;
-
   int byte_offset = 0;
-  for (int i = 0; i < state->player_count; i++) {
-    if (i == current_player)
+  for (int i = 0; i < MAX_PLAYERS; i++) {
+    if (state->players[i].socket == 0)
       continue;
 
-    buffer[16 + byte_offset] = state->players[i].color;
-    buffer[20 + byte_offset] = state->players[i].position.x;
-    buffer[24 + byte_offset] = state->players[i].position.y;
-    buffer[28 + byte_offset] = state->players[i].score;
+    *((u32 *)(buffer + 4 + byte_offset)) = htonl(state->players[i].color);
+    buffer[8 + byte_offset] = state->players[i].position.x;
+    buffer[12 + byte_offset] = state->players[i].position.y;
+    *((u32 *)(buffer + 16 + byte_offset)) = htonl(state->players[i].score);
 
     byte_offset += 16;
   }

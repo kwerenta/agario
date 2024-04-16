@@ -28,8 +28,6 @@ int main() {
 
   initialize_application(&app);
 
-  u32 black = SDL_MapRGB(app.screen->format, 0, 0, 0);
-
   u8 message[2] = {0, 5};
 
   while (is_running) {
@@ -38,9 +36,12 @@ int main() {
       is_running = 0;
     }
 
-    SDL_FillRect(app.screen, NULL, black);
+    SDL_SetRenderDrawColor(app.renderer, 33, 33, 33, 255);
+    SDL_RenderClear(app.renderer);
+
     render_players(&app, &state.game);
-    update_screen(&app);
+
+    SDL_RenderPresent(app.renderer);
 
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_KEYDOWN) {

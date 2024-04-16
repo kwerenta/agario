@@ -21,12 +21,17 @@ int main() {
   srand(time(NULL));
 
   pthread_t game_thread;
+  pthread_mutex_t player_count_mutex;
+
+  if (pthread_mutex_init(&player_count_mutex, NULL) != 0) {
+    perror("Failed to init player count mutex");
+    return 1;
+  }
 
   for (;;) {
-    accept_player(server_fd, state.players);
-    state.player_count++;
+    accept_player(server_fd, state.players, &state.player_count, &player_count_mutex);
 
-    if (has_started == 0) {
+    if (has_started == 0 && state.player_count > 0) {
       if (pthread_create(&game_thread, NULL, handle_game_update, &state)) {
         perror("Failed to start game thread");
         exit(1);
@@ -41,9 +46,14 @@ int main() {
 
   // Wait for all players to disconnect
   for (int i = 0; i < MAX_PLAYERS; i++) {
-    pthread_join(state.players[i].thread, NULL);
-    close(state.players[i].socket);
+    if (state.players[i].thread != 0)
+      pthread_join(state.players[i].thread, NULL);
+
+    if (state.players[i].socket != 0)
+      close(state.players[i].socket);
   }
 
   close(server_fd);
+
+  pthread_mutex_destroy(&player_count_mutex);
 }

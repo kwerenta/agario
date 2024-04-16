@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,13 +37,20 @@ const int setup_server() {
   return fd;
 }
 
-void accept_player(const int server_fd, Player *players) {
+void accept_player(const int server_fd, Player *players, u8 *player_count, pthread_mutex_t *player_count_mutex) {
   struct sockaddr_in client_addr;
   socklen_t client_addr_len = sizeof(client_addr);
 
   const int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 
-  // TODO: Send error if server is full
+  if (*player_count == MAX_PLAYERS) {
+    // TODO: Send error to client
+    printf("Player couldn't join. Server is full\n");
+    close(client_fd);
+    return;
+  }
+
+  pthread_mutex_lock(player_count_mutex);
 
   // Find empty client_id
   u8 client_id = 0;
@@ -62,15 +70,23 @@ void accept_player(const int server_fd, Player *players) {
                      .socket = client_fd,
                      .score = 0};
 
-  if (pthread_create(&player->thread, NULL, player_data_receiver, player)) {
+  if (pthread_create(&player->thread, NULL, player_data_receiver,
+                     &(ReceiverParams){
+                         .player_count_mutex = player_count_mutex, .player_count = player_count, .player = player})) {
     perror("failed to create thread for client");
   }
 
-  printf("Client %s:%d connected to the server\n", inet_ntoa(client_addr.sin_addr), htons(client_addr.sin_port));
+  (*player_count)++;
+
+  printf("Client %s:%d connected to the server. Player count: %d\n", inet_ntoa(client_addr.sin_addr),
+         htons(client_addr.sin_port), *player_count);
+
+  pthread_mutex_unlock(player_count_mutex);
 }
 
 void *player_data_receiver(void *p_receiver_params) {
-  Player *player = (Player *)p_receiver_params;
+  ReceiverParams *params = (ReceiverParams *)p_receiver_params;
+  Player *player = params->player;
   u8 buf[2];
 
   // TEMP: Fixed message size
@@ -80,7 +96,14 @@ void *player_data_receiver(void *p_receiver_params) {
     }
   }
 
-  printf("Client disconencted from server\n");
+  pthread_mutex_lock(params->player_count_mutex);
+
+  player->socket = 0;
+  player->thread = 0;
+  (*params->player_count)--;
+
+  printf("Client disconencted from server. Player count: %d\n", *params->player_count);
+  pthread_mutex_unlock(params->player_count_mutex);
 
   return NULL;
 }
@@ -95,10 +118,10 @@ void *handle_game_update(void *p_state) {
   struct timespec ts;
   f64 tick_time, time_diff;
 
-  while (1) {
+  for (;;) {
     if (state->player_count == 0) {
       printf("All players disconnected. Stopping game\n");
-      break;
+      return NULL;
     }
 
     start = clock();
@@ -141,7 +164,7 @@ void serialize_message(u8 *buffer, State *state, int current_player) {
   buffer[0] = 0;
 
   buffer[1] = state->player_count;
-  buffer[2] = state->balls_count;
+  *((u16 *)(buffer + 2)) = htons(state->balls_count);
 
   int byte_offset = 0;
   for (int i = 0; i < MAX_PLAYERS; i++) {

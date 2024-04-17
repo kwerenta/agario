@@ -85,25 +85,24 @@ void accept_player(const int server_fd, Player *players, u8 *player_count, pthre
 }
 
 void *player_data_receiver(void *p_receiver_params) {
-  ReceiverParams *params = (ReceiverParams *)p_receiver_params;
-  Player *player = params->player;
-  u8 buf[2];
+  ReceiverParams params = *((ReceiverParams *)p_receiver_params);
+  u8 buf[2] = {0};
 
   // TEMP: Fixed message size
-  while (recv(player->socket, buf, sizeof(buf), 0) == sizeof(buf)) {
+  while (recv(params.player->socket, buf, sizeof(buf), 0) == sizeof(buf)) {
     if (buf[0] == 0 && buf[1] == 5) {
-      player->score += 1;
+      params.player->score += 1;
     }
   }
 
-  pthread_mutex_lock(params->player_count_mutex);
+  pthread_mutex_lock(params.player_count_mutex);
 
-  player->socket = 0;
-  player->thread = 0;
-  (*params->player_count)--;
+  (*params.player_count)--;
+  params.player->socket = 0;
+  params.player->thread = 0;
 
-  printf("Client disconencted from server. Player count: %d\n", *params->player_count);
-  pthread_mutex_unlock(params->player_count_mutex);
+  printf("Client disconencted from server. Player count: %d\n", *params.player_count);
+  pthread_mutex_unlock(params.player_count_mutex);
 
   return NULL;
 }

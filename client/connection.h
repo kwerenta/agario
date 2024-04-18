@@ -9,7 +9,8 @@
 
 typedef struct State {
   const int fd;
-  int is_connected;
+  u8 is_connected;
+  u8 is_running;
   GameState game;
 } State;
 

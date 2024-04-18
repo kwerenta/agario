@@ -28,7 +28,7 @@ int main() {
   }
 
   for (;;) {
-    accept_player(server_fd, state.players, &state.player_count, &player_count_mutex);
+    accept_player(server_fd, &state, &player_count_mutex);
 
     if (has_started == 0 && state.player_count > 0) {
       if (pthread_create(&game_thread, NULL, handle_game_update, &state)) {

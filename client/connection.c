@@ -32,11 +32,33 @@ void *handle_connection(void *p_state) {
   State *state = (State *)p_state;
 
   while (recv(state->fd, buffer, sizeof(buffer), 0) > 0 && state->is_connected == 1) {
-    for (int i = 0; i < (u8)buffer[1]; i++) {
-      state->game.players[i].color = ntohl(*((u32 *)(buffer + 4 + i * 16)));
-      state->game.players[i].position.x = buffer[8 + i * 16];
-      state->game.players[i].position.y = buffer[12 + i * 16];
-      state->game.players[i].score = ntohl(*((u32 *)(buffer + 16 + i * 16)));
+    u8 header = buffer[0];
+
+    if (header == 0) {
+      state->game.player_id = buffer[4];
+      for (u8 i = 0; i < (u8)buffer[1]; i++) {
+        u8 id = buffer[5 + i * 17];
+        state->game.players[id].color = ntohl(*((u32 *)(buffer + 6 + i * 17)));
+        state->game.players[id].position.x = buffer[10 + i * 17];
+        state->game.players[id].position.y = buffer[14 + i * 17];
+        state->game.players[id].score = ntohl(*((u32 *)(buffer + 18 + i * 17)));
+      }
+
+      printf("Client received JOIN message from server\n");
+      continue;
+    }
+
+    for (u8 i = 0; i < (u8)buffer[1]; i++) {
+      // u8 id = buffer[5 + i * 13];
+      // state->game.players[id].position.x = buffer[6 + i * 13];
+      // state->game.players[id].position.y = buffer[10 + i * 13];
+      // state->game.players[id].score = ntohl(*((u32 *)(buffer + 14 + i * 13)));
+
+      u8 id = buffer[5 + i * 17];
+      state->game.players[id].color = ntohl(*((u32 *)(buffer + 6 + i * 17)));
+      state->game.players[id].position.x = buffer[10 + i * 17];
+      state->game.players[id].position.y = buffer[14 + i * 17];
+      state->game.players[id].score = ntohl(*((u32 *)(buffer + 18 + i * 17)));
     }
   }
 

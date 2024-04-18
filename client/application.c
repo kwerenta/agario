@@ -33,14 +33,14 @@ int initialize_application(Application *app) {
 
 void render_players(Application *app, GameState *game) {
   for (int i = 0; i < MAX_PLAYERS; i++) {
-    Player player = game->players[i];
+    Player *player = &game->players[i];
 
-    if (player.color == 0)
+    if (player->color == 0)
       continue;
 
-    u32 size = 50 + player.score * 10;
+    u32 size = 20 + player->score * 5;
 
-    draw_circle(app->renderer, player.position.x, player.position.y, size, player.color);
+    draw_circle(app->renderer, player->position.x, player->position.y, size, player->color);
   }
 }
 

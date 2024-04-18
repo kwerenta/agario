@@ -11,9 +11,12 @@ typedef struct {
 } Player;
 
 typedef struct GameState {
+  u8 player_id;
   Player players[MAX_PLAYERS];
 } GameState;
 
 void initialize_game_state(GameState *game);
+
+void update_player_position(GameState *game);
 
 #endif

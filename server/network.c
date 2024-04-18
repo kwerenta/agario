@@ -37,13 +37,13 @@ const int setup_server() {
   return fd;
 }
 
-void accept_player(const int server_fd, Player *players, u8 *player_count, pthread_mutex_t *player_count_mutex) {
+void accept_player(const int server_fd, State *state, pthread_mutex_t *player_count_mutex) {
   struct sockaddr_in client_addr;
   socklen_t client_addr_len = sizeof(client_addr);
 
   const int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
 
-  if (*player_count == MAX_PLAYERS) {
+  if (state->player_count == MAX_PLAYERS) {
     // TODO: Send error to client
     printf("Player couldn't join. Server is full\n");
     close(client_fd);
@@ -55,13 +55,13 @@ void accept_player(const int server_fd, Player *players, u8 *player_count, pthre
   // Find empty client_id
   u8 client_id = 0;
   for (int i = 0; i < MAX_PLAYERS; i++) {
-    if (players[i].socket == 0) {
+    if (state->players[i].socket == 0) {
       client_id = i;
       break;
     }
   }
 
-  Player *player = &players[client_id];
+  Player *player = &state->players[client_id];
 
   u32 color = (1 + rand() / ((RAND_MAX + 1u) / 0xFFFFFF)) << 8;
 
@@ -71,27 +71,42 @@ void accept_player(const int server_fd, Player *players, u8 *player_count, pthre
                      .score = 0};
 
   if (pthread_create(&player->thread, NULL, player_data_receiver,
-                     &(ReceiverParams){
-                         .player_count_mutex = player_count_mutex, .player_count = player_count, .player = player})) {
+                     &(ReceiverParams){.player_count_mutex = player_count_mutex,
+                                       .player_count = &state->player_count,
+                                       .player_id = client_id,
+                                       .player = player,
+                                       .state = state})) {
     perror("failed to create thread for client");
   }
 
-  (*player_count)++;
+  state->player_count++;
 
   printf("Client %s:%d connected to the server. Player count: %d\n", inet_ntoa(client_addr.sin_addr),
-         htons(client_addr.sin_port), *player_count);
+         htons(client_addr.sin_port), state->player_count);
 
   pthread_mutex_unlock(player_count_mutex);
 }
 
 void *player_data_receiver(void *p_receiver_params) {
   ReceiverParams params = *((ReceiverParams *)p_receiver_params);
-  u8 buf[2] = {0};
+  u8 buffer[BUFFER_SIZE] = {0};
 
-  // TEMP: Fixed message size
-  while (recv(params.player->socket, buf, sizeof(buf), 0) == sizeof(buf)) {
-    if (buf[0] == 0 && buf[1] == 5) {
+  while (recv(params.player->socket, buffer, sizeof(buffer), 0) > 0) {
+    if (buffer[0] == 0) {
+      printf("Received JOIN message from client (id=%d)\n", params.player_id);
+      serialize_join_message(buffer, params.state, params.player_id);
+      send(params.player->socket, buffer, *params.player_count * 17 + 5, 0);
+      printf("Sent JOIN message to client (id=%d)\n", params.player_id);
+      continue;
+    }
+
+    if (buffer[0] == 0b10000000) {
       params.player->score += 1;
+    }
+
+    if (buffer[0] == 0b01000000) {
+      params.player->position.x = buffer[1];
+      params.player->position.y = buffer[5];
     }
   }
 
@@ -111,7 +126,7 @@ void *handle_game_update(void *p_state) {
   printf("Game has started\n");
 
   State *state = (State *)p_state;
-  u8 buffer[1024] = {0};
+  u8 buffer[BUFFER_SIZE] = {0};
 
   clock_t start;
   struct timespec ts;
@@ -119,23 +134,14 @@ void *handle_game_update(void *p_state) {
 
   for (;;) {
     if (state->player_count == 0) {
-      printf("All players disconnected. Stopping game\n");
-      return NULL;
+      // printf("All players disconnected. Stopping game\n");
+      // return NULL;
+      sleep(1);
     }
 
     start = clock();
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-      if (state->players[i].socket == 0)
-        continue;
 
-      if (i % 2 == 0) {
-        state->players[i].position.x += 0.5;
-        state->players[i].position.y += 0.5;
-      } else {
-        state->players[i].position.x -= 0.5;
-        state->players[i].position.y -= 0.5;
-      }
-    }
+    // TODO: Game logic, validate player moves
 
     tick_time = (clock() - start) / (f64)CLOCKS_PER_SEC;
     time_diff = 1.0 / TICKS_PER_SECOND - tick_time;
@@ -146,35 +152,65 @@ void *handle_game_update(void *p_state) {
       nanosleep(&ts, &ts);
     }
 
+    serialize_message(buffer, state);
     for (int i = 0; i < MAX_PLAYERS; i++) {
       if (state->players[i].socket == 0)
         continue;
 
-      serialize_message(buffer, state, i);
-      send(state->players[i].socket, buffer, state->player_count * 16 + 4, 0);
+      // Id of client that the message is send to
+      buffer[4] = i;
+      send(state->players[i].socket, buffer, state->player_count * 17 + 5, 0);
     }
   }
 
   return NULL;
 }
 
-void serialize_message(u8 *buffer, State *state, int current_player) {
+void serialize_message(u8 *buffer, State *state) {
+  // Header
+  buffer[0] = 0b01000000;
+
+  buffer[1] = state->player_count;
+  *((u16 *)(buffer + 2)) = htons(state->balls_count);
+
+  u32 byte_offset = 0;
+  for (u8 i = 0; i < MAX_PLAYERS; i++) {
+    if (state->players[i].socket == 0)
+      continue;
+
+    buffer[5 + byte_offset] = i;
+    // buffer[6 + byte_offset] = state->players[i].position.x;
+    // buffer[10 + byte_offset] = state->players[i].position.y;
+    // *((u32 *)(buffer + 14 + byte_offset)) = htonl(state->players[i].score);
+
+    *((u32 *)(buffer + 6 + byte_offset)) = htonl(state->players[i].color);
+    buffer[10 + byte_offset] = state->players[i].position.x;
+    buffer[14 + byte_offset] = state->players[i].position.y;
+    *((u32 *)(buffer + 18 + byte_offset)) = htonl(state->players[i].score);
+
+    byte_offset += 17;
+  }
+}
+
+void serialize_join_message(u8 *buffer, State *state, u8 id) {
   // Header
   buffer[0] = 0;
 
   buffer[1] = state->player_count;
   *((u16 *)(buffer + 2)) = htons(state->balls_count);
+  buffer[4] = id;
 
-  int byte_offset = 0;
-  for (int i = 0; i < MAX_PLAYERS; i++) {
+  u32 byte_offset = 0;
+  for (u8 i = 0; i < MAX_PLAYERS; i++) {
     if (state->players[i].socket == 0)
       continue;
 
-    *((u32 *)(buffer + 4 + byte_offset)) = htonl(state->players[i].color);
-    buffer[8 + byte_offset] = state->players[i].position.x;
-    buffer[12 + byte_offset] = state->players[i].position.y;
-    *((u32 *)(buffer + 16 + byte_offset)) = htonl(state->players[i].score);
+    buffer[5 + byte_offset] = i;
+    *((u32 *)(buffer + 6 + byte_offset)) = htonl(state->players[i].color);
+    buffer[10 + byte_offset] = state->players[i].position.x;
+    buffer[14 + byte_offset] = state->players[i].position.y;
+    *((u32 *)(buffer + 18 + byte_offset)) = htonl(state->players[i].score);
 
-    byte_offset += 16;
+    byte_offset += 17;
   }
-}
+};

@@ -47,8 +47,8 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   // TEMP: sending message directly after frame render
   u8 move_message[9];
   move_message[0] = 0b01000000;
-  move_message[1] = state->game.players[state->game.player_id].position.x;
-  move_message[5] = state->game.players[state->game.player_id].position.y;
+  *(f32 *)(move_message + 1) = state->game.players[state->game.player_id].position.x;
+  *(f32 *)(move_message + 5) = state->game.players[state->game.player_id].position.y;
   send(state->fd, move_message, sizeof(move_message), 0);
 }
 

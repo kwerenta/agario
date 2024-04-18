@@ -105,8 +105,8 @@ void *player_data_receiver(void *p_receiver_params) {
     }
 
     if (buffer[0] == 0b01000000) {
-      params.player->position.x = buffer[1];
-      params.player->position.y = buffer[5];
+      params.player->position.x = *(f32 *)(buffer + 1);
+      params.player->position.y = *(f32 *)(buffer + 5);
     }
   }
 
@@ -183,10 +183,10 @@ void serialize_message(u8 *buffer, State *state) {
     // buffer[10 + byte_offset] = state->players[i].position.y;
     // *((u32 *)(buffer + 14 + byte_offset)) = htonl(state->players[i].score);
 
-    *((u32 *)(buffer + 6 + byte_offset)) = htonl(state->players[i].color);
-    buffer[10 + byte_offset] = state->players[i].position.x;
-    buffer[14 + byte_offset] = state->players[i].position.y;
-    *((u32 *)(buffer + 18 + byte_offset)) = htonl(state->players[i].score);
+    *(u32 *)(buffer + 6 + byte_offset) = htonl(state->players[i].color);
+    *(f32 *)(buffer + 10 + byte_offset) = state->players[i].position.x;
+    *(f32 *)(buffer + 14 + byte_offset) = state->players[i].position.y;
+    *(u32 *)(buffer + 18 + byte_offset) = htonl(state->players[i].score);
 
     byte_offset += 17;
   }
@@ -206,10 +206,10 @@ void serialize_join_message(u8 *buffer, State *state, u8 id) {
       continue;
 
     buffer[5 + byte_offset] = i;
-    *((u32 *)(buffer + 6 + byte_offset)) = htonl(state->players[i].color);
-    buffer[10 + byte_offset] = state->players[i].position.x;
-    buffer[14 + byte_offset] = state->players[i].position.y;
-    *((u32 *)(buffer + 18 + byte_offset)) = htonl(state->players[i].score);
+    *(u32 *)(buffer + 6 + byte_offset) = htonl(state->players[i].color);
+    *(f32 *)(buffer + 10 + byte_offset) = state->players[i].position.x;
+    *(f32 *)(buffer + 14 + byte_offset) = state->players[i].position.y;
+    *(u32 *)(buffer + 18 + byte_offset) = htonl(state->players[i].score);
 
     byte_offset += 17;
   }

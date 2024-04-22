@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 
 #include "../shared/config.h"
+#include "../shared/serialization.h"
 
 #include "connection.h"
 
@@ -36,10 +37,11 @@ void *handle_connection(void *p_state) {
 
     for (u8 i = 0; i < (u8)buffer[1]; i++) {
       u8 id = buffer[5 + i * 17];
-      state->game.players[id].color = ntohl(*(u32 *)(buffer + 6 + i * 17));
-      state->game.players[id].position.x = *(f32 *)(buffer + 10 + i * 17);
-      state->game.players[id].position.y = *(f32 *)(buffer + 14 + i * 17);
-      state->game.players[id].score = ntohl(*(u32 *)(buffer + 18 + i * 17));
+
+      deserialize_u32(state->game.players[id].color, buffer + 6 + i * 17);
+      deserialize_f32(state->game.players[id].position.x, buffer + 10 + i * 17);
+      deserialize_f32(state->game.players[id].position.y, buffer + 14 + i * 17);
+      deserialize_u32(state->game.players[id].score, buffer + 18 + i * 17);
     }
   }
 

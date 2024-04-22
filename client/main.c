@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "../shared/serialization.h"
+
 #include "application.h"
 #include "connection.h"
 #include "draw.h"
@@ -47,8 +49,8 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   // TEMP: sending message directly after frame render
   u8 move_message[9];
   move_message[0] = 0b01000000;
-  *(f32 *)(move_message + 1) = state->game.players[state->game.player_id].position.x;
-  *(f32 *)(move_message + 5) = state->game.players[state->game.player_id].position.y;
+  serialize_f32(move_message + 1, state->game.players[state->game.player_id].position.x);
+  serialize_f32(move_message + 5, state->game.players[state->game.player_id].position.y);
   send(state->fd, move_message, sizeof(move_message), 0);
 }
 
@@ -76,7 +78,7 @@ int main() {
   srand(time(NULL));
   u32 color = (1 + rand() / ((RAND_MAX + 1u) / 0xFFFFFF)) << 8;
 
-  *(u32 *)(buffer + 1) = htonl(color);
+  serialize_u32(buffer + 1, color);
 
   send(fd, buffer, sizeof(buffer), 0);
   printf("Client sent JOIN message to server\n");

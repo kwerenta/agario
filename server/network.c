@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "../shared/config.h"
+#include "../shared/serialization.h"
 
 #include "network.h"
 
@@ -97,7 +98,7 @@ void *player_data_receiver(void *p_receiver_params) {
   while (recv(params.player->socket, buffer, sizeof(buffer), 0) > 0) {
     if (buffer[0] == 0) {
       printf("Received JOIN message from client (id=%d)\n", params.player_id);
-      params.player->color = ntohl(*(u32 *)(buffer + 1));
+      deserialize_u32(params.player->color, buffer + 1);
       params.player->has_joined = 1;
       continue;
     }
@@ -107,8 +108,8 @@ void *player_data_receiver(void *p_receiver_params) {
     }
 
     if (buffer[0] == 0b01000000) {
-      params.player->position.x = *(f32 *)(buffer + 1);
-      params.player->position.y = *(f32 *)(buffer + 5);
+      deserialize_f32(params.player->position.x, buffer + 1);
+      deserialize_f32(params.player->position.y, buffer + 5);
     }
   }
 
@@ -173,7 +174,7 @@ void serialize_message(u8 *buffer, State *state) {
   buffer[0] = 0b01000000;
 
   buffer[1] = state->player_count;
-  *((u16 *)(buffer + 2)) = htons(state->balls_count);
+  serialize_u16(buffer + 2, state->balls_count);
 
   u32 byte_offset = 0;
   for (u8 i = 0; i < MAX_PLAYERS; i++) {
@@ -182,10 +183,10 @@ void serialize_message(u8 *buffer, State *state) {
 
     buffer[5 + byte_offset] = i;
 
-    *(u32 *)(buffer + 6 + byte_offset) = htonl(state->players[i].color);
-    *(f32 *)(buffer + 10 + byte_offset) = state->players[i].position.x;
-    *(f32 *)(buffer + 14 + byte_offset) = state->players[i].position.y;
-    *(u32 *)(buffer + 18 + byte_offset) = htonl(state->players[i].score);
+    serialize_u32(buffer + 6 + byte_offset, state->players[i].color);
+    serialize_f32(buffer + 10 + byte_offset, state->players[i].position.x);
+    serialize_f32(buffer + 14 + byte_offset, state->players[i].position.y);
+    serialize_u32(buffer + 18 + byte_offset, state->players[i].score);
 
     byte_offset += 17;
   }

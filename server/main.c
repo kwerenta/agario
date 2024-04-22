@@ -6,6 +6,7 @@
 
 #include "../shared/config.h"
 #include "../shared/types.h"
+
 #include "network.h"
 #include "state.h"
 

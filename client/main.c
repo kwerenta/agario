@@ -30,9 +30,12 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   while (SDL_PollEvent(event)) {
     if (event->type == SDL_KEYDOWN) {
       switch (event->key.keysym.sym) {
-      case SDLK_SPACE:
-        send(state->fd, (u8[1]){0b10000000}, sizeof(u8), 0);
+      case SDLK_SPACE: {
+        u8 speed_message[2];
+        serialize_header(speed_message, 2, 0);
+        send(state->fd, speed_message, sizeof(speed_message), 0);
         break;
+      }
       }
     }
 
@@ -47,10 +50,10 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   SDL_Delay(16);
 
   // TEMP: sending message directly after frame render
-  u8 move_message[9];
-  move_message[0] = 0b01000000;
-  serialize_f32(move_message + 1, state->game.players[state->game.player_id].position.x);
-  serialize_f32(move_message + 5, state->game.players[state->game.player_id].position.y);
+  u8 move_message[10];
+  serialize_header(move_message, 1, 0);
+  serialize_f32(move_message + 2, state->game.players[state->game.player_id].position.x);
+  serialize_f32(move_message + 6, state->game.players[state->game.player_id].position.y);
   send(state->fd, move_message, sizeof(move_message), 0);
 }
 
@@ -72,13 +75,14 @@ int main() {
   initialize_application(&app);
 
   // Send join message to server
-  u8 buffer[5] = {0};
+  u8 buffer[6] = {0};
+  serialize_header(buffer, 0, 0);
 
   // TEMP: Color selected randomly
   srand(time(NULL));
   u32 color = (1 + rand() / ((RAND_MAX + 1u) / 0xFFFFFF)) << 8;
 
-  serialize_u32(buffer + 1, color);
+  serialize_u32(buffer + 2, color);
 
   send(fd, buffer, sizeof(buffer), 0);
   printf("Client sent JOIN message to server\n");

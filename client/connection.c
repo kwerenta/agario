@@ -32,28 +32,9 @@ void *handle_connection(void *p_state) {
   State *state = (State *)p_state;
 
   while (recv(state->fd, buffer, sizeof(buffer), 0) > 0 && state->is_connected == 1) {
-    u8 header = buffer[0];
-
-    if (header == 0) {
-      state->game.player_id = buffer[4];
-      for (u8 i = 0; i < (u8)buffer[1]; i++) {
-        u8 id = buffer[5 + i * 17];
-        state->game.players[id].color = ntohl(*(u32 *)(buffer + 6 + i * 17));
-        state->game.players[id].position.x = *(f32 *)(buffer + 10 + i * 17);
-        state->game.players[id].position.y = *(f32 *)(buffer + 14 + i * 17);
-        state->game.players[id].score = ntohl(*(u32 *)(buffer + 18 + i * 17));
-      }
-
-      printf("Client received JOIN message from server\n");
-      continue;
-    }
+    state->game.player_id = buffer[4];
 
     for (u8 i = 0; i < (u8)buffer[1]; i++) {
-      // u8 id = buffer[5 + i * 13];
-      // state->game.players[id].position.x = buffer[6 + i * 13];
-      // state->game.players[id].position.y = buffer[10 + i * 13];
-      // state->game.players[id].score = ntohl(*((u32 *)(buffer + 14 + i * 13)));
-
       u8 id = buffer[5 + i * 17];
       state->game.players[id].color = ntohl(*(u32 *)(buffer + 6 + i * 17));
       state->game.players[id].position.x = *(f32 *)(buffer + 10 + i * 17);

@@ -70,7 +70,15 @@ int main() {
   initialize_application(&app);
 
   // Send join message to server
-  send(fd, (u8[5]){0}, sizeof(u8) * 5, 0);
+  u8 buffer[5] = {0};
+
+  // TEMP: Color selected randomly
+  srand(time(NULL));
+  u32 color = (1 + rand() / ((RAND_MAX + 1u) / 0xFFFFFF)) << 8;
+
+  *(u32 *)(buffer + 1) = htonl(color);
+
+  send(fd, buffer, sizeof(buffer), 0);
   printf("Client sent JOIN message to server\n");
 
   while (state.is_running) {

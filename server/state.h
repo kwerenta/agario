@@ -11,6 +11,7 @@ typedef struct {
   Position position;
   u32 score;
 
+  u8 has_joined;
   i32 socket;
   pthread_t thread;
 } Player;

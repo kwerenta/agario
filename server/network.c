@@ -63,19 +63,22 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
 
   Player *player = &state->players[client_id];
 
-  u32 color = (1 + rand() / ((RAND_MAX + 1u) / 0xFFFFFF)) << 8;
-
-  *player = (Player){.color = color,
-                     .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
-                     .socket = client_fd,
-                     .score = 0};
+  *player = (Player){
+      .color = 0,
+      .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
+      .score = 0,
+      .has_joined = 0,
+      .socket = client_fd,
+      .thread = 0,
+  };
 
   if (pthread_create(&player->thread, NULL, player_data_receiver,
-                     &(ReceiverParams){.player_count_mutex = player_count_mutex,
-                                       .player_count = &state->player_count,
-                                       .player_id = client_id,
-                                       .player = player,
-                                       .state = state})) {
+                     &(ReceiverParams){
+                         .player_count_mutex = player_count_mutex,
+                         .player_count = &state->player_count,
+                         .player_id = client_id,
+                         .player = player,
+                     })) {
     perror("failed to create thread for client");
   }
 
@@ -94,9 +97,8 @@ void *player_data_receiver(void *p_receiver_params) {
   while (recv(params.player->socket, buffer, sizeof(buffer), 0) > 0) {
     if (buffer[0] == 0) {
       printf("Received JOIN message from client (id=%d)\n", params.player_id);
-      serialize_join_message(buffer, params.state, params.player_id);
-      send(params.player->socket, buffer, *params.player_count * 17 + 5, 0);
-      printf("Sent JOIN message to client (id=%d)\n", params.player_id);
+      params.player->color = ntohl(*(u32 *)(buffer + 1));
+      params.player->has_joined = 1;
       continue;
     }
 
@@ -179,9 +181,6 @@ void serialize_message(u8 *buffer, State *state) {
       continue;
 
     buffer[5 + byte_offset] = i;
-    // buffer[6 + byte_offset] = state->players[i].position.x;
-    // buffer[10 + byte_offset] = state->players[i].position.y;
-    // *((u32 *)(buffer + 14 + byte_offset)) = htonl(state->players[i].score);
 
     *(u32 *)(buffer + 6 + byte_offset) = htonl(state->players[i].color);
     *(f32 *)(buffer + 10 + byte_offset) = state->players[i].position.x;
@@ -191,26 +190,3 @@ void serialize_message(u8 *buffer, State *state) {
     byte_offset += 17;
   }
 }
-
-void serialize_join_message(u8 *buffer, State *state, u8 id) {
-  // Header
-  buffer[0] = 0;
-
-  buffer[1] = state->player_count;
-  *((u16 *)(buffer + 2)) = htons(state->balls_count);
-  buffer[4] = id;
-
-  u32 byte_offset = 0;
-  for (u8 i = 0; i < MAX_PLAYERS; i++) {
-    if (state->players[i].socket == 0)
-      continue;
-
-    buffer[5 + byte_offset] = i;
-    *(u32 *)(buffer + 6 + byte_offset) = htonl(state->players[i].color);
-    *(f32 *)(buffer + 10 + byte_offset) = state->players[i].position.x;
-    *(f32 *)(buffer + 14 + byte_offset) = state->players[i].position.y;
-    *(u32 *)(buffer + 18 + byte_offset) = htonl(state->players[i].score);
-
-    byte_offset += 17;
-  }
-};

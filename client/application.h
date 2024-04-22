@@ -13,5 +13,6 @@ typedef struct Application {
 int initialize_application(Application *app);
 
 void render_players(Application *app, GameState *game);
+void render_balls(Application *app, GameState *game);
 
 void close_app(Application *app);

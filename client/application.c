@@ -44,6 +44,13 @@ void render_players(Application *app, GameState *game) {
   }
 }
 
+void render_balls(Application *app, GameState *game) {
+  for (int i = 0; i < MAX_BALLS; i++) {
+    // draw_circle(app->renderer, game->balls[i].x, game->balls[i].y, 8, 0x00FF0000);
+    draw_rectangle(app->renderer, game->balls[i].x, game->balls[i].y, 8, 8, 0x00FF0000);
+  }
+}
+
 void close_app(Application *app) {
   SDL_DestroyRenderer(app->renderer);
   SDL_DestroyWindow(app->window);

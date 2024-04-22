@@ -163,38 +163,51 @@ void *handle_game_update(void *p_state) {
       nanosleep(&ts, &ts);
     }
 
-    serialize_message(buffer, state);
+    u32 message_size = serialize_message(buffer, state);
     for (int i = 0; i < MAX_PLAYERS; i++) {
       if (state->players[i].socket == 0)
         continue;
 
       // Id of client that the message is send to
       buffer[5] = i;
-      send(state->players[i].socket, buffer, state->player_count * 17 + 6, 0);
+      send(state->players[i].socket, buffer, message_size, 0);
     }
   }
 
   return NULL;
 }
 
-void serialize_message(u8 *buffer, State *state) {
+u32 serialize_message(u8 *buffer_start, State *state) {
+  u8 *buffer = buffer_start;
   serialize_header(buffer, 0, 0);
 
   buffer[2] = state->player_count;
   serialize_u16(buffer + 3, state->balls_count);
 
-  u32 byte_offset = 0;
+  buffer += 6;
+
   for (u8 i = 0; i < MAX_PLAYERS; i++) {
     if (state->players[i].socket == 0)
       continue;
 
-    buffer[6 + byte_offset] = i;
+    *buffer = i;
 
-    serialize_u32(buffer + 7 + byte_offset, state->players[i].color);
-    serialize_f32(buffer + 11 + byte_offset, state->players[i].position.x);
-    serialize_f32(buffer + 15 + byte_offset, state->players[i].position.y);
-    serialize_u32(buffer + 19 + byte_offset, state->players[i].score);
+    serialize_u32(buffer + 1, state->players[i].color);
+    serialize_f32(buffer + 5, state->players[i].position.x);
+    serialize_f32(buffer + 9, state->players[i].position.y);
+    serialize_u32(buffer + 13, state->players[i].score);
 
-    byte_offset += 17;
+    buffer += 17;
   }
+
+  for (u16 i = 0; i < MAX_BALLS; i++) {
+    if (state->balls[i].position.x == 0 && state->balls[i].position.y == 0)
+      continue;
+
+    serialize_f32(buffer, state->balls[i].position.x);
+    serialize_f32(buffer + 4, state->balls[i].position.y);
+    buffer += 8;
+  }
+
+  return buffer - buffer_start;
 }

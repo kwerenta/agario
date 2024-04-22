@@ -13,6 +13,7 @@ typedef struct {
 typedef struct GameState {
   u8 player_id;
   Player players[MAX_PLAYERS];
+  Position balls[MAX_BALLS];
 } GameState;
 
 void initialize_game_state(GameState *game);

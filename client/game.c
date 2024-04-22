@@ -6,6 +6,9 @@ void initialize_game_state(GameState *game) {
   game->player_id = 0;
   for (int i = 0; i < MAX_PLAYERS; i++)
     game->players[i] = (Player){.color = 0, .position = {0}, .score = 0};
+
+  for (int i = 0; i < MAX_BALLS; i++)
+    game->balls[i] = (Position){.x = 0, .y = 0};
 }
 
 void update_player_position(GameState *game) {

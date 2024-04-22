@@ -25,6 +25,8 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   update_player_position(&state->game);
   render_players(app, &state->game);
 
+  render_balls(app, &state->game);
+
   SDL_RenderPresent(app->renderer);
 
   while (SDL_PollEvent(event)) {

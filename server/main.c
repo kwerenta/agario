@@ -15,10 +15,17 @@ int main() {
   if (server_fd < 0)
     return 1;
 
-  State state = {.player_count = 0, .balls_count = 0, .players = {0}, .balls = {0}};
-  u8 has_started = 0;
-
   srand(time(NULL));
+
+  State state = {.player_count = 0, .balls_count = START_BALLS, .players = {0}, .balls = {0}};
+
+  for (int i = 0; i < START_BALLS; i++) {
+    // TODO: Add check if position is free
+    state.balls[i].position.x = (float)rand() / ((float)RAND_MAX / MAP_WIDTH);
+    state.balls[i].position.y = (float)rand() / ((float)RAND_MAX / MAP_HEIGHT);
+  }
+
+  u8 has_started = 0;
 
   pthread_t game_thread;
   pthread_mutex_t player_count_mutex;

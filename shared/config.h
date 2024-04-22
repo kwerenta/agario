@@ -4,7 +4,12 @@
 #define DEFAULT_PORT 2002
 #define TICKS_PER_SECOND 16
 
+#define MAP_WIDTH 640
+#define MAP_HEIGHT 480
+
 #define MAX_PLAYERS 4
 #define MAX_BALLS 1024
+
+#define START_BALLS 32
 
 #endif

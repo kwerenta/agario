@@ -1,2 +1,6 @@
+# Build files
+build
+
+# MacOS files
 .DS_Store
-*.o
+

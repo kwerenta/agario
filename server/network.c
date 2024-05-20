@@ -177,7 +177,8 @@ void *handle_game_update(void *p_state) {
       float distance = sqrt(dx * dx + dy * dy);
 
       // Checks if move was possible
-      if (distance <= 1.0 / TICKS_PER_SECOND * (1 + 1.0 / state->players[action.player_id].score + 1)) {
+      // There is 1.1 instead of 1.0 to compensate any floating point arithmetic errors
+      if (distance <= (1.1 + 1.0 / state->players[action.player_id].score + 1)) {
         state->players[action.player_id].position = action.position;
       } else {
         printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,

@@ -32,6 +32,7 @@ const int setup_connection() {
 void *handle_connection(void *p_state) {
   u8 buffer[BUFFER_SIZE];
   State *state = (State *)p_state;
+  u32 color = 0;
   u16 balls_count = 0;
   u8 players_count = 0;
 
@@ -46,9 +47,19 @@ void *handle_connection(void *p_state) {
     for (u8 i = 0; i < players_count; i++) {
       u8 id = buffer[6 + i * 17];
 
+      deserialize_u32(state->game.players[id].color, buffer + 7 + i * 17);
+      deserialize_u32(state->game.players[id].score, buffer + 19 + i * 17);
+
+      if (id == state->game.player_id && color != 0 && state->game.players[id].color == 0) {
+        printf("You died.\n");
+        state->is_running = 0;
+        state->is_connected = 0;
+        return NULL;
+      }
+
       // Client-side prediction (optimistic updates)
-      if (id == state->game.player_id && state->action_queue != NULL &&
-          state->game.players[state->game.player_id].color != 0) {
+      if (id == state->game.player_id && state->action_queue != NULL) {
+        color = state->game.players[id].color;
         // Client did not send new action between server responses
         if (state->last_message_id == message_id) {
           continue;
@@ -56,7 +67,6 @@ void *handle_connection(void *p_state) {
 
         pthread_mutex_lock(state->action_queue_mutex);
 
-        printf("Received message %d\n", message_id);
         ActionValue action = {0};
 
         // Remove all old actions
@@ -78,10 +88,8 @@ void *handle_connection(void *p_state) {
         }
       }
 
-      deserialize_u32(state->game.players[id].color, buffer + 7 + i * 17);
       deserialize_f32(state->game.players[id].position.x, buffer + 11 + i * 17);
       deserialize_f32(state->game.players[id].position.y, buffer + 15 + i * 17);
-      deserialize_u32(state->game.players[id].score, buffer + 19 + i * 17);
     }
 
     deserialize_u16(balls_count, buffer + 3);

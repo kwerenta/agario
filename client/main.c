@@ -63,8 +63,6 @@ static void frame(Application *app, State *state, SDL_Event *event) {
                                              .message_id = state->last_message_id,
                                              .position = state->game.players[state->game.player_id].position});
 
-  printf("Sent message %d\n", state->last_message_id);
-
   // TODO: Handle message id overflow
   state->last_message_id++;
   // 12 bit message id

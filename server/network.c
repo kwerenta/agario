@@ -66,8 +66,9 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
   Player *player = &state->players[client_id];
 
   *player = (Player){.color = 0,
+                     // TEMP: Test purposes only
                      .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
-                     .score = 0,
+                     .score = client_id % MAX_PLAYERS,
                      .has_joined = 0,
                      .socket = client_fd,
                      .thread = 0,
@@ -181,6 +182,29 @@ void *handle_game_update(void *p_state) {
       } else {
         printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,
                action.position.x, action.position.y);
+      }
+
+      // Check collisions with other players
+      for (int i = 0; i < MAX_PLAYERS; i++) {
+        for (int j = i + 1; j < MAX_PLAYERS; j++) {
+          if (state->players[i].socket == 0 || state->players[j].socket == 0 || state->players[i].color == 0 ||
+              state->players[j].color == 0)
+            continue;
+
+          float dx = state->players[i].position.x - state->players[j].position.x;
+          float dy = state->players[i].position.y - state->players[j].position.y;
+          float distance = sqrt(dx * dx + dy * dy);
+
+          // Checks if player[i] is inside player[j]
+          if (distance + 5 * state->players[i].score + 20 <= 5 * state->players[j].score + 20) {
+            printf("Player %d has been killed by player %d\n", i, j);
+
+            // TODO: Sent DIE action to the client
+
+            state->players[i].score = 0;
+            state->players[i].color = 0;
+          }
+        }
       }
     }
 

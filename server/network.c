@@ -11,6 +11,7 @@
 #include "../shared/config.h"
 #include "../shared/serialization.h"
 
+#include "action_queue.h"
 #include "network.h"
 
 const int setup_server() {
@@ -38,7 +39,7 @@ const int setup_server() {
   return fd;
 }
 
-void accept_player(const int server_fd, State *state, pthread_mutex_t *player_count_mutex) {
+void accept_player(const int server_fd, State *state, pthread_mutex_t *player_count_mutex, ActionNode **action_queue) {
   struct sockaddr_in client_addr;
   socklen_t client_addr_len = sizeof(client_addr);
 
@@ -76,6 +77,7 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
   if (pthread_create(&player->thread, NULL, player_data_receiver,
                      &(ReceiverParams){
                          .player_count_mutex = player_count_mutex,
+                         .action_queue = action_queue,
                          .player_count = &state->player_count,
                          .player_id = client_id,
                          .player = player,
@@ -111,8 +113,18 @@ void *player_data_receiver(void *p_receiver_params) {
 
     // MOVE
     if (action == 1) {
-      deserialize_f32(params.player->position.x, buffer + 2);
-      deserialize_f32(params.player->position.y, buffer + 6);
+      Position new_position = {0};
+
+      deserialize_f32(new_position.x, buffer + 2);
+      deserialize_f32(new_position.y, buffer + 6);
+
+      // TODO: Add mutex to prevent race conditions
+      enqueue(params.action_queue, (ActionValue){.player_id = params.player_id,
+                                                 .message_id = params.player->last_message_id,
+                                                 .position = new_position});
+      params.player->last_message_id += 1;
+      // 12 bit message id
+      params.player->last_message_id %= 0x1000;
     }
 
     // SPEED
@@ -152,7 +164,20 @@ void *handle_game_update(void *p_state) {
 
     start = clock();
 
-    // TODO: Game logic, validate player moves
+    while (*state->action_queue != NULL) {
+      ActionValue action = dequeue(state->action_queue);
+
+      float dx = action.position.x - state->players[action.player_id].position.x;
+      float dy = action.position.y - state->players[action.player_id].position.y;
+      float distance = sqrt(dx * dx + dy * dy);
+
+      if (distance <= 1.0 / TICKS_PER_SECOND * (1 + 1.0 / state->players[action.player_id].score + 1)) {
+        state->players[action.player_id].position = action.position;
+      } else {
+        printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,
+               action.position.x, action.position.y);
+      }
+    }
 
     tick_time = (clock() - start) / (f64)CLOCKS_PER_SEC;
     time_diff = 1.0 / TICKS_PER_SECOND - tick_time;

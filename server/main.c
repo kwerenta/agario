@@ -7,6 +7,7 @@
 #include "../shared/config.h"
 #include "../shared/types.h"
 
+#include "action_queue.h"
 #include "network.h"
 #include "state.h"
 
@@ -17,7 +18,10 @@ int main() {
 
   srand(time(NULL));
 
-  State state = {.player_count = 0, .balls_count = START_BALLS, .players = {0}, .balls = {0}};
+  ActionNode *action_queue = NULL;
+
+  State state = {
+      .action_queue = &action_queue, .player_count = 0, .balls_count = START_BALLS, .players = {0}, .balls = {0}};
 
   for (int i = 0; i < START_BALLS; i++) {
     // TODO: Add check if position is free
@@ -36,7 +40,7 @@ int main() {
   }
 
   for (;;) {
-    accept_player(server_fd, &state, &player_count_mutex);
+    accept_player(server_fd, &state, &player_count_mutex, &action_queue);
 
     if (has_started == 0 && state.player_count > 0) {
       if (pthread_create(&game_thread, NULL, handle_game_update, &state)) {

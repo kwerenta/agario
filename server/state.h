@@ -6,6 +6,8 @@
 #include "../shared/config.h"
 #include "../shared/types.h"
 
+#include "action_queue.h"
+
 typedef struct {
   u32 color;
   Position position;
@@ -14,6 +16,7 @@ typedef struct {
   u8 has_joined;
   i32 socket;
   pthread_t thread;
+  u16 last_message_id;
 } Player;
 
 typedef struct {
@@ -21,6 +24,7 @@ typedef struct {
 } Ball;
 
 typedef struct {
+  ActionNode **action_queue;
   u8 player_count;
   u16 balls_count;
 

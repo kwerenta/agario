@@ -51,12 +51,26 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   // Fixed 60FPS
   SDL_Delay(16);
 
+  pthread_mutex_lock(state->action_queue_mutex);
   // TEMP: sending message directly after frame render
   u8 move_message[10];
-  serialize_header(move_message, 1, 0);
+  serialize_header(move_message, 1, state->last_message_id);
   serialize_f32(move_message + 2, state->game.players[state->game.player_id].position.x);
   serialize_f32(move_message + 6, state->game.players[state->game.player_id].position.y);
   send(state->fd, move_message, sizeof(move_message), 0);
+
+  enqueue(state->action_queue, (ActionValue){.player_id = state->game.player_id,
+                                             .message_id = state->last_message_id,
+                                             .position = state->game.players[state->game.player_id].position});
+
+  printf("Sent message %d\n", state->last_message_id);
+
+  // TODO: Handle message id overflow
+  state->last_message_id++;
+  // 12 bit message id
+  state->last_message_id %= 0x1000;
+
+  pthread_mutex_unlock(state->action_queue_mutex);
 }
 
 int main() {
@@ -68,7 +82,21 @@ int main() {
   Application app;
   SDL_Event event;
 
-  State state = {.fd = fd, .is_connected = 1, .is_running = 1};
+  ActionNode *action_queue = NULL;
+
+  pthread_mutex_t action_queue_mutex;
+
+  if (pthread_mutex_init(&action_queue_mutex, NULL) != 0) {
+    perror("Failed to init action queue mutex");
+    return 1;
+  }
+
+  State state = {.fd = fd,
+                 .is_connected = 1,
+                 .is_running = 1,
+                 .last_message_id = 1,
+                 .action_queue = &action_queue,
+                 .action_queue_mutex = &action_queue_mutex};
   initialize_game_state(&state.game);
 
   pthread_t connection_thread;
@@ -94,6 +122,8 @@ int main() {
   }
 
   pthread_join(connection_thread, NULL);
+
+  pthread_mutex_destroy(&action_queue_mutex);
 
   close_app(&app);
   close(fd);

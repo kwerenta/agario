@@ -3,14 +3,16 @@
 
 #include <pthread.h>
 
+#include "../shared/action_queue.h"
 #include "../shared/types.h"
-#include "action_queue.h"
+
 #include "state.h"
 
 #define BUFFER_SIZE 1024
 
 typedef struct {
   pthread_mutex_t *player_count_mutex;
+  pthread_mutex_t *action_queue_mutex;
   ActionNode **action_queue;
   u8 *player_count;
 

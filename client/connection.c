@@ -35,12 +35,48 @@ void *handle_connection(void *p_state) {
   u16 balls_count = 0;
   u8 players_count = 0;
 
+  u8 action;
+  u16 message_id;
+
   while (recv(state->fd, buffer, sizeof(buffer), 0) > 0 && state->is_connected == 1) {
-    state->game.player_id = buffer[5];
+    deserialize_header(buffer, &action, &message_id);
     players_count = buffer[2];
+    state->game.player_id = buffer[5];
 
     for (u8 i = 0; i < players_count; i++) {
       u8 id = buffer[6 + i * 17];
+
+      // Client-side prediction (optimistic updates)
+      if (id == state->game.player_id && state->action_queue != NULL &&
+          state->game.players[state->game.player_id].color != 0) {
+        // Client did not send new action between server responses
+        if (state->last_message_id == message_id) {
+          continue;
+        }
+
+        pthread_mutex_lock(state->action_queue_mutex);
+
+        printf("Received message %d\n", message_id);
+        ActionValue action = {0};
+
+        // Remove all old actions
+        while (*state->action_queue != NULL && (*state->action_queue)->data.message_id <= message_id) {
+          action = dequeue(state->action_queue);
+        }
+
+        Position received_position = {0};
+        deserialize_f32(received_position.x, buffer + 11 + i * 17);
+        deserialize_f32(received_position.y, buffer + 15 + i * 17);
+
+        state->last_message_id = message_id;
+
+        pthread_mutex_unlock(state->action_queue_mutex);
+
+        // Skip updating position if move was correct
+        if (action.position.x == received_position.x && action.position.y == received_position.y) {
+          continue;
+        }
+      }
 
       deserialize_u32(state->game.players[id].color, buffer + 7 + i * 17);
       deserialize_f32(state->game.players[id].position.x, buffer + 11 + i * 17);

@@ -8,10 +8,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../shared/action_queue.h"
 #include "../shared/config.h"
 #include "../shared/serialization.h"
 
-#include "action_queue.h"
 #include "network.h"
 
 const int setup_server() {
@@ -65,18 +65,18 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
 
   Player *player = &state->players[client_id];
 
-  *player = (Player){
-      .color = 0,
-      .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
-      .score = 0,
-      .has_joined = 0,
-      .socket = client_fd,
-      .thread = 0,
-  };
+  *player = (Player){.color = 0,
+                     .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
+                     .score = 0,
+                     .has_joined = 0,
+                     .socket = client_fd,
+                     .thread = 0,
+                     .last_message_id = 0};
 
   if (pthread_create(&player->thread, NULL, player_data_receiver,
                      &(ReceiverParams){
                          .player_count_mutex = player_count_mutex,
+                         .action_queue_mutex = state->action_queue_mutex,
                          .action_queue = action_queue,
                          .player_count = &state->player_count,
                          .player_id = client_id,
@@ -118,13 +118,14 @@ void *player_data_receiver(void *p_receiver_params) {
       deserialize_f32(new_position.x, buffer + 2);
       deserialize_f32(new_position.y, buffer + 6);
 
-      // TODO: Add mutex to prevent race conditions
-      enqueue(params.action_queue, (ActionValue){.player_id = params.player_id,
-                                                 .message_id = params.player->last_message_id,
-                                                 .position = new_position});
-      params.player->last_message_id += 1;
-      // 12 bit message id
-      params.player->last_message_id %= 0x1000;
+      pthread_mutex_lock(params.action_queue_mutex);
+
+      // Add move sent by client to action queue
+      enqueue(params.action_queue,
+              (ActionValue){.player_id = params.player_id, .message_id = message_id, .position = new_position});
+      params.player->last_message_id = message_id;
+
+      pthread_mutex_unlock(params.action_queue_mutex);
     }
 
     // SPEED
@@ -164,6 +165,9 @@ void *handle_game_update(void *p_state) {
 
     start = clock();
 
+    pthread_mutex_lock(state->action_queue_mutex);
+
+    // Validates all moves send to the server since last tick
     while (*state->action_queue != NULL) {
       ActionValue action = dequeue(state->action_queue);
 
@@ -171,21 +175,13 @@ void *handle_game_update(void *p_state) {
       float dy = action.position.y - state->players[action.player_id].position.y;
       float distance = sqrt(dx * dx + dy * dy);
 
+      // Checks if move was possible
       if (distance <= 1.0 / TICKS_PER_SECOND * (1 + 1.0 / state->players[action.player_id].score + 1)) {
         state->players[action.player_id].position = action.position;
       } else {
         printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,
                action.position.x, action.position.y);
       }
-    }
-
-    tick_time = (clock() - start) / (f64)CLOCKS_PER_SEC;
-    time_diff = 1.0 / TICKS_PER_SECOND - tick_time;
-
-    if (time_diff > 0) {
-      ts.tv_sec = 0;
-      ts.tv_nsec = time_diff * 1000 * 1000 * 1000;
-      nanosleep(&ts, &ts);
     }
 
     u32 message_size = serialize_message(buffer, state);
@@ -195,7 +191,20 @@ void *handle_game_update(void *p_state) {
 
       // Id of client that the message is send to
       buffer[5] = i;
+      serialize_header(buffer, 0, state->players[i].last_message_id);
       send(state->players[i].socket, buffer, message_size, 0);
+    }
+
+    pthread_mutex_unlock(state->action_queue_mutex);
+
+    // Calculates how much time it needs to sleep to complete a full tick
+    tick_time = (clock() - start) / (f64)CLOCKS_PER_SEC;
+    time_diff = 1.0 / TICKS_PER_SECOND - tick_time;
+
+    if (time_diff > 0) {
+      ts.tv_sec = 0;
+      ts.tv_nsec = time_diff * 1000 * 1000 * 1000;
+      nanosleep(&ts, &ts);
     }
   }
 

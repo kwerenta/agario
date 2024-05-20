@@ -4,10 +4,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../shared/action_queue.h"
 #include "../shared/config.h"
 #include "../shared/types.h"
 
-#include "action_queue.h"
 #include "network.h"
 #include "state.h"
 
@@ -18,10 +18,26 @@ int main() {
 
   srand(time(NULL));
 
+  pthread_mutex_t player_count_mutex, action_queue_mutex;
+
+  if (pthread_mutex_init(&player_count_mutex, NULL) != 0) {
+    perror("Failed to init player count mutex");
+    return 1;
+  }
+
+  if (pthread_mutex_init(&action_queue_mutex, NULL) != 0) {
+    perror("Failed to init action queue mutex");
+    return 1;
+  }
+
   ActionNode *action_queue = NULL;
 
-  State state = {
-      .action_queue = &action_queue, .player_count = 0, .balls_count = START_BALLS, .players = {0}, .balls = {0}};
+  State state = {.action_queue = &action_queue,
+                 .action_queue_mutex = &action_queue_mutex,
+                 .player_count = 0,
+                 .balls_count = START_BALLS,
+                 .players = {0},
+                 .balls = {0}};
 
   for (int i = 0; i < START_BALLS; i++) {
     // TODO: Add check if position is free
@@ -32,12 +48,6 @@ int main() {
   u8 has_started = 0;
 
   pthread_t game_thread;
-  pthread_mutex_t player_count_mutex;
-
-  if (pthread_mutex_init(&player_count_mutex, NULL) != 0) {
-    perror("Failed to init player count mutex");
-    return 1;
-  }
 
   for (;;) {
     accept_player(server_fd, &state, &player_count_mutex, &action_queue);
@@ -67,4 +77,5 @@ int main() {
   close(server_fd);
 
   pthread_mutex_destroy(&player_count_mutex);
+  pthread_mutex_destroy(&action_queue_mutex);
 }

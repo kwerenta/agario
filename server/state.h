@@ -3,10 +3,9 @@
 
 #include <pthread.h>
 
+#include "../shared/action_queue.h"
 #include "../shared/config.h"
 #include "../shared/types.h"
-
-#include "action_queue.h"
 
 typedef struct {
   u32 color;
@@ -25,6 +24,7 @@ typedef struct {
 
 typedef struct {
   ActionNode **action_queue;
+  pthread_mutex_t *action_queue_mutex;
   u8 player_count;
   u16 balls_count;
 

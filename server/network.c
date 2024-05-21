@@ -185,7 +185,7 @@ void *handle_game_update(void *p_state) {
                action.position.x, action.position.y);
       }
 
-      // Check collisions with other players
+      // Checks collisions with other players
       for (int i = 0; i < MAX_PLAYERS; i++) {
         for (int j = i + 1; j < MAX_PLAYERS; j++) {
           if (state->players[i].socket == 0 || state->players[j].socket == 0 || state->players[i].color == 0 ||
@@ -205,6 +205,30 @@ void *handle_game_update(void *p_state) {
             state->players[i].score = 0;
             state->players[i].color = 0;
           }
+        }
+      }
+    }
+
+    // Checks collisions with balls
+    for (int i = 0; i < MAX_BALLS; i++) {
+      // Balls with position (0,0) are inactive
+      if (state->balls[i].position.x == 0 && state->balls[i].position.y == 0)
+        continue;
+
+      for (int j = 0; j < MAX_PLAYERS; j++) {
+        if (state->players[j].socket == 0 || state->players[j].color == 0)
+          continue;
+
+        float dx = state->balls[i].position.x - state->players[j].position.x;
+        float dy = state->balls[i].position.y - state->players[j].position.y;
+        float distance = sqrt(dx * dx + dy * dy);
+
+        // Check if ball is inside player
+        if (distance + BALL_SIZE / 2.0 <= 5 * state->players[j].score + 20) {
+          state->players[j].score++;
+          state->balls[i].position.x = 0;
+          state->balls[i].position.y = 0;
+          state->balls_count--;
         }
       }
     }

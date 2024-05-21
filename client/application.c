@@ -46,8 +46,10 @@ void render_players(Application *app, GameState *game) {
 
 void render_balls(Application *app, GameState *game) {
   for (int i = 0; i < MAX_BALLS; i++) {
+    if (game->balls[i].x == 0 && game->balls[i].y == 0)
+      continue;
     // draw_circle(app->renderer, game->balls[i].x, game->balls[i].y, 8, 0x00FF0000);
-    draw_rectangle(app->renderer, game->balls[i].x, game->balls[i].y, 8, 8, 0x00FF0000);
+    draw_rectangle(app->renderer, game->balls[i].x, game->balls[i].y, BALL_SIZE, BALL_SIZE, 0x00FF0000);
   }
 }
 

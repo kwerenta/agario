@@ -11,5 +11,6 @@
 #define MAX_BALLS 1024
 
 #define START_BALLS 32
+#define BALL_SIZE 8
 
 #endif

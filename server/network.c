@@ -204,6 +204,17 @@ void *handle_game_update(void *p_state) {
 
             state->players[i].score = 0;
             state->players[i].color = 0;
+            continue;
+          }
+
+          // Checks if player[j] is inside player[i]
+          if (distance + 5 * state->players[j].score + 20 <= 5 * state->players[i].score + 20) {
+            printf("Player %d has been killed by player %d\n", j, i);
+
+            // TODO: Sent DIE action to the client
+
+            state->players[j].score = 0;
+            state->players[j].color = 0;
           }
         }
       }

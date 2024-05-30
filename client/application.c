@@ -1,3 +1,4 @@
+#include "../shared/utils.h"
 #include "draw.h"
 
 #include "application.h"
@@ -38,7 +39,7 @@ void render_players(Application *app, GameState *game) {
     if (player->color == 0)
       continue;
 
-    u32 size = 20 + player->score * 5;
+    u32 size = get_player_radius(player->score);
 
     draw_circle(app->renderer, player->position.x, player->position.y, size, player->color);
   }

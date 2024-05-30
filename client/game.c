@@ -1,5 +1,7 @@
 #include <SDL2/SDL.h>
 
+#include "../shared/utils.h"
+
 #include "game.h"
 
 void initialize_game_state(GameState *game) {
@@ -26,6 +28,6 @@ void update_player_position(GameState *game) {
     dy /= distance;
   }
 
-  player->position.x += dx * (1 + 1.0 / (player->score + 1));
-  player->position.y += dy * (1 + 1.0 / (player->score + 1));
+  player->position.x += dx * get_player_speed(player->score);
+  player->position.y += dy * get_player_speed(player->score);
 }

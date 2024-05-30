@@ -11,6 +11,7 @@
 #include "../shared/action_queue.h"
 #include "../shared/config.h"
 #include "../shared/serialization.h"
+#include "../shared/utils.h"
 
 #include "network.h"
 
@@ -173,13 +174,11 @@ void *handle_game_update(void *p_state) {
     while (*state->action_queue != NULL) {
       ActionValue action = dequeue(state->action_queue);
 
-      float dx = action.position.x - state->players[action.player_id].position.x;
-      float dy = action.position.y - state->players[action.player_id].position.y;
-      float distance = sqrt(dx * dx + dy * dy);
+      float distance = get_distance(action.position, state->players[action.player_id].position);
 
       // Checks if move was possible
-      // There is 1.1 instead of 1.0 to compensate any floating point arithmetic errors
-      if (distance <= (1.1 + 1.0 / (state->players[action.player_id].score + 1))) {
+      // +0.1 to compensate any floating point arithmetic errors
+      if (distance <= (get_player_speed(state->players[action.player_id].score) + 0.1)) {
         state->players[action.player_id].position = action.position;
       } else {
         printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,
@@ -193,12 +192,13 @@ void *handle_game_update(void *p_state) {
               state->players[j].color == 0)
             continue;
 
-          float dx = state->players[i].position.x - state->players[j].position.x;
-          float dy = state->players[i].position.y - state->players[j].position.y;
-          float distance = sqrt(dx * dx + dy * dy);
+          float distance = get_distance(state->players[i].position, state->players[j].position);
+
+          u32 player_i_radius = get_player_radius(state->players[i].score);
+          u32 player_j_radius = get_player_radius(state->players[j].score);
 
           // Checks if player[i] is inside player[j]
-          if (distance + 5 * state->players[i].score + 20 <= 5 * state->players[j].score + 20) {
+          if (distance + player_i_radius <= player_j_radius) {
             printf("Player %d has been killed by player %d\n", i, j);
 
             // TODO: Sent DIE action to the client
@@ -209,7 +209,7 @@ void *handle_game_update(void *p_state) {
           }
 
           // Checks if player[j] is inside player[i]
-          if (distance + 5 * state->players[j].score + 20 <= 5 * state->players[i].score + 20) {
+          if (distance + player_j_radius <= player_i_radius) {
             printf("Player %d has been killed by player %d\n", j, i);
 
             // TODO: Sent DIE action to the client
@@ -231,9 +231,7 @@ void *handle_game_update(void *p_state) {
         if (state->players[j].socket == 0 || state->players[j].color == 0)
           continue;
 
-        float dx = state->balls[i].position.x - state->players[j].position.x;
-        float dy = state->balls[i].position.y - state->players[j].position.y;
-        float distance = sqrt(dx * dx + dy * dy);
+        float distance = get_distance(state->balls[i].position, state->players[j].position);
 
         // Check if ball is inside player
         if (distance + BALL_SIZE / 2.0 <= 5 * state->players[j].score + 20) {

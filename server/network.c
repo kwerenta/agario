@@ -70,6 +70,7 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
                      // TEMP: Test purposes only
                      .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
                      .score = client_id % MAX_PLAYERS,
+                     .speed_time = sec_to_us(DEFAULT_SPEED_TIME_SECONDS),
                      .has_joined = 0,
                      .socket = client_fd,
                      .thread = 0,
@@ -132,7 +133,12 @@ void *player_data_receiver(void *p_receiver_params) {
 
     // SPEED
     if (action == 2) {
-      params.player->score++;
+      if (params.player->speed_time == 0)
+        params.player->speed_time = sec_to_us(SPEED_TIME_SECONDS);
+      else if (params.player->speed_time > 0)
+        printf("Player %d already has speed actived\n", params.player_id);
+      else
+        printf("Player %d needs to wait for cooldown to end\n", params.player_id);
       params.player->last_message_id = message_id;
     }
   }
@@ -177,8 +183,9 @@ void *handle_game_update(void *p_state) {
       float distance = get_distance(action.position, state->players[action.player_id].position);
 
       // Checks if move was possible
+      float speed_multiplier = state->players[action.player_id].speed_time > 0 ? SPEED_MULTIPLIER : 1;
       // +0.1 to compensate any floating point arithmetic errors
-      if (distance <= (get_player_speed(state->players[action.player_id].score) + 0.1)) {
+      if (distance <= (get_player_speed(state->players[action.player_id].score) * speed_multiplier + 0.1)) {
         state->players[action.player_id].position = action.position;
       } else {
         printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,
@@ -234,7 +241,7 @@ void *handle_game_update(void *p_state) {
         float distance = get_distance(state->balls[i].position, state->players[j].position);
 
         // Check if ball is inside player
-        if (distance + BALL_SIZE / 2.0 <= 5 * state->players[j].score + 20) {
+        if (distance + BALL_SIZE / 2.0 <= get_player_radius(state->players[j].score)) {
           state->players[j].score++;
           state->balls[i].position.x = 0;
           state->balls[i].position.y = 0;
@@ -247,6 +254,19 @@ void *handle_game_update(void *p_state) {
     for (int i = 0; i < MAX_PLAYERS; i++) {
       if (state->players[i].socket == 0)
         continue;
+
+      // handle if speed is active or has cooldown
+      if (state->players[i].speed_time != 0) {
+        i8 is_active = state->players[i].speed_time > 0 ? 1 : -1;
+        state->players[i].speed_time -= is_active * sec_to_us(1.0 / TICKS_PER_SECOND);
+
+        if (is_active == 1 && state->players[i].speed_time <= 0)
+          state->players[i].speed_time = -sec_to_us(SPEED_COOLDOWN_SECONDS);
+        else if (is_active == -1 && state->players[i].speed_time >= 0)
+          state->players[i].speed_time = 0;
+
+        // printf("Player %d speed time %d\n", i, state->players[i].speed_time);
+      }
 
       // Id of client that the message is send to
       buffer[5] = i;
@@ -262,7 +282,7 @@ void *handle_game_update(void *p_state) {
 
     if (time_diff > 0) {
       ts.tv_sec = 0;
-      ts.tv_nsec = time_diff * 1000 * 1000 * 1000;
+      ts.tv_nsec = sec_to_ns(time_diff);
       nanosleep(&ts, &ts);
     }
   }

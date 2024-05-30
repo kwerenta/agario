@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "../shared/serialization.h"
+#include "../shared/utils.h"
 
 #include "application.h"
 #include "connection.h"
@@ -18,6 +19,10 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   if (state->is_connected == 0) {
     state->is_running = 0;
   }
+
+  u32 tick_time = SDL_GetTicks();
+  app->clock.delta = tick_time - app->clock.last_tick;
+  app->clock.last_tick = tick_time;
 
   SDL_SetRenderDrawColor(app->renderer, 33, 33, 33, 255);
   SDL_RenderClear(app->renderer);
@@ -33,10 +38,14 @@ static void frame(Application *app, State *state, SDL_Event *event) {
     if (event->type == SDL_KEYDOWN) {
       switch (event->key.keysym.sym) {
       case SDLK_SPACE: {
+        if (state->game.speed_time != 0)
+          continue;
+
         u8 speed_message[2];
         serialize_header(speed_message, 2, state->last_message_id);
         state->last_message_id++;
         send(state->fd, speed_message, sizeof(speed_message), 0);
+        state->game.speed_time = sec_to_us(SPEED_TIME_SECONDS);
         break;
       }
       }
@@ -47,6 +56,18 @@ static void frame(Application *app, State *state, SDL_Event *event) {
       state->is_connected = 0;
       break;
     }
+  }
+
+  if (state->game.speed_time != 0) {
+    i8 is_active = state->game.speed_time > 0 ? 1 : -1;
+    state->game.speed_time -= is_active * ms_to_us(app->clock.delta);
+
+    if (is_active == 1 && state->game.speed_time <= 0)
+      state->game.speed_time = -sec_to_us(SPEED_COOLDOWN_SECONDS);
+    else if (is_active == -1 && state->game.speed_time >= 0)
+      state->game.speed_time = 0;
+
+    // printf("Player speed time %d\n", state->game.speed_time);
   }
 
   // Fixed 60FPS

@@ -29,6 +29,8 @@ int initialize_application(Application *app) {
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   SDL_RenderSetLogicalSize(app->renderer, 640, 480);
 
+  app->clock = (Clock){.delta = 0, .last_tick = 0};
+
   return 1;
 }
 

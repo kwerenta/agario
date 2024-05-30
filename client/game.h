@@ -14,6 +14,7 @@ typedef struct GameState {
   u8 player_id;
   Player players[MAX_PLAYERS];
   Position balls[MAX_BALLS];
+  i32 speed_time;
 } GameState;
 
 void initialize_game_state(GameState *game);

@@ -11,6 +11,7 @@ typedef struct {
   u32 color;
   Position position;
   u32 score;
+  i32 speed_time;
 
   u8 has_joined;
   i32 socket;

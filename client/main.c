@@ -34,7 +34,8 @@ static void frame(Application *app, State *state, SDL_Event *event) {
       switch (event->key.keysym.sym) {
       case SDLK_SPACE: {
         u8 speed_message[2];
-        serialize_header(speed_message, 2, 0);
+        serialize_header(speed_message, 2, state->last_message_id);
+        state->last_message_id++;
         send(state->fd, speed_message, sizeof(speed_message), 0);
         break;
       }

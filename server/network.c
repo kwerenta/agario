@@ -131,7 +131,8 @@ void *player_data_receiver(void *p_receiver_params) {
 
     // SPEED
     if (action == 2) {
-      params.player->score += 1;
+      params.player->score++;
+      params.player->last_message_id = message_id;
     }
   }
 
@@ -178,7 +179,7 @@ void *handle_game_update(void *p_state) {
 
       // Checks if move was possible
       // There is 1.1 instead of 1.0 to compensate any floating point arithmetic errors
-      if (distance <= (1.1 + 1.0 / state->players[action.player_id].score + 1)) {
+      if (distance <= (1.1 + 1.0 / (state->players[action.player_id].score + 1))) {
         state->players[action.player_id].position = action.position;
       } else {
         printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,

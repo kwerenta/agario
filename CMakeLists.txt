@@ -20,8 +20,10 @@ if(TARGET SDL2::SDL2main)
 endif()
 
 # Link to the actual SDL2 library. SDL2::SDL2 is the shared SDL library, SDL2::SDL2-static is the static SDL libarary.
-target_link_libraries(client PRIVATE SDL2::SDL2)
+target_link_libraries(client PRIVATE SDL2::SDL2 m)
 # Server executable
 add_executable(server ${SERVER_SOURCES} ${SHARED_SOURCES})
+
+target_link_libraries(server m)
 
 

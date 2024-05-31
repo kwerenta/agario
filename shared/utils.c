@@ -28,3 +28,21 @@ u16 get_port_from_string(char *str) {
 
   return port;
 }
+
+u8 has_time_elapsed(struct timespec *last_time, u32 duration_ms) {
+  struct timespec current_time;
+  clock_gettime(CLOCK_REALTIME, &current_time);
+
+  i32 elapsed_seconds = current_time.tv_sec - last_time->tv_sec;
+  i32 elapsed_nanoseconds = current_time.tv_nsec - last_time->tv_nsec;
+
+  // Convert elapsed time to milliseconds
+  i32 elapsed_milliseconds = elapsed_seconds * 1000 + elapsed_nanoseconds / 1000000;
+
+  if (elapsed_milliseconds >= duration_ms) {
+    *last_time = current_time;
+    return 1;
+  }
+
+  return 0;
+};

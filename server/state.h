@@ -30,6 +30,7 @@ typedef struct {
   u8 player_count;
   u16 balls_count;
   struct timespec last_ball_spawn_time;
+  struct timespec last_score_loss_time;
 
   Player players[MAX_PLAYERS];
   Ball balls[MAX_BALLS];

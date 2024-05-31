@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
                  .player_count = 0,
                  .balls_count = START_BALLS,
                  .last_ball_spawn_time = {.tv_sec = 0, .tv_nsec = 0},
+                 .last_score_loss_time = {.tv_sec = 0, .tv_nsec = 0},
                  .players = {{0}},
                  .balls = {{{0}}}};
 

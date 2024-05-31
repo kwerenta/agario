@@ -94,7 +94,7 @@ void *handle_connection(void *p_state) {
 
     deserialize_u16(balls_count, buffer + 3);
 
-    memset(state->game.balls, 0, MAX_BALLS);
+    memset(state->game.balls, 0, MAX_BALLS * sizeof(Position));
 
     for (u16 i = 0; i < balls_count; i++) {
       deserialize_f32(state->game.balls[i].x, buffer + 6 + 17 * players_count + i * 8);

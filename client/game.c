@@ -21,16 +21,19 @@ void update_player_position(GameState *game) {
 
   Player *player = &game->players[game->player_id];
 
-  float dx = mouseX - player->position.x;
-  float dy = mouseY - player->position.y;
-  float distance = sqrt(dx * dx + dy * dy);
+  f32 dx = mouseX - player->position.x;
+  f32 dy = mouseY - player->position.y;
+  f32 distance = sqrt(dx * dx + dy * dy);
+
+  if (distance < 1)
+    return;
 
   if (distance != 0) {
     dx /= distance;
     dy /= distance;
   }
 
-  float speed_multiplier = game->speed_time > 0 ? SPEED_MULTIPLIER : 1.0;
+  f32 speed_multiplier = game->speed_time > 0 ? SPEED_MULTIPLIER : 1.0;
 
   player->position.x += dx * get_player_speed(player->score) * speed_multiplier;
   player->position.y += dy * get_player_speed(player->score) * speed_multiplier;

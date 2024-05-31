@@ -21,7 +21,7 @@ typedef struct {
 } ReceiverParams;
 
 // Creates socket, binds it to the port and starts listening
-const int setup_server();
+const int setup_server(u16 port);
 
 void accept_player(const int server_fd, State *state, pthread_mutex_t *player_count_mutex, ActionNode **action_queue);
 

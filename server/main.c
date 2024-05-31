@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,12 +8,24 @@
 #include "../shared/action_queue.h"
 #include "../shared/config.h"
 #include "../shared/types.h"
+#include "../shared/utils.h"
 
 #include "network.h"
 #include "state.h"
 
-int main() {
-  const int server_fd = setup_server();
+int main(int argc, char **argv) {
+  u32 port = DEFAULT_PORT;
+
+  if (argc == 2) {
+    port = get_port_from_string(argv[1]);
+
+    if (port == 0) {
+      perror("Invalid port");
+      return 1;
+    }
+  }
+
+  const int server_fd = setup_server(port);
   if (server_fd < 0)
     return 1;
 

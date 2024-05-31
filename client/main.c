@@ -93,8 +93,17 @@ static void frame(Application *app, State *state, SDL_Event *event) {
   pthread_mutex_unlock(state->action_queue_mutex);
 }
 
-int main() {
-  const int fd = setup_connection();
+int main(int argc, char **argv) {
+  u32 port = DEFAULT_PORT;
+
+  if (argc == 3) {
+    port = get_port_from_string(argv[2]);
+    if (port == 0) {
+      perror("Invalid port");
+      return 1;
+    }
+  }
+  const int fd = setup_connection(argc > 1 ? argv[1] : "127.0.0.1", port);
 
   if (fd < 0)
     return 1;

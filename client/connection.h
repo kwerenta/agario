@@ -23,7 +23,7 @@ typedef struct State {
 } State;
 
 // Creates socket, assigns address and connects to server
-const int setup_connection();
+const int setup_connection(char *address, u16 port);
 
 void *handle_connection(void *p_state);
 #endif

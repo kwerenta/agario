@@ -15,13 +15,13 @@
 
 #include "network.h"
 
-const int setup_server() {
+const int setup_server(u16 port) {
   const int fd = socket(PF_INET, SOCK_STREAM, 0);
 
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = htons(DEFAULT_PORT);
+  addr.sin_port = htons(port);
 
   if (bind(fd, (struct sockaddr *)&addr, sizeof(addr))) {
     perror("bind error:");

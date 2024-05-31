@@ -8,7 +8,7 @@
 
 #include "state.h"
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 typedef struct {
   pthread_mutex_t *player_count_mutex;

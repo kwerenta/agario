@@ -76,15 +76,22 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
                      .thread = 0,
                      .last_message_id = 0};
 
-  if (pthread_create(&player->thread, NULL, player_data_receiver,
-                     &(ReceiverParams){
-                         .player_count_mutex = player_count_mutex,
-                         .action_queue_mutex = state->action_queue_mutex,
-                         .action_queue = action_queue,
-                         .player_count = &state->player_count,
-                         .player_id = client_id,
-                         .player = player,
-                     })) {
+  ReceiverParams *params = malloc(sizeof(ReceiverParams));
+  if (params == NULL) {
+    perror("Failed to allocate memory for thread params");
+    exit(1);
+  }
+
+  *params = (ReceiverParams){
+      .player_count_mutex = player_count_mutex,
+      .action_queue_mutex = state->action_queue_mutex,
+      .action_queue = action_queue,
+      .player_count = &state->player_count,
+      .player_id = client_id,
+      .player = player,
+  };
+
+  if (pthread_create(&player->thread, NULL, player_data_receiver, params)) {
     perror("failed to create thread for client");
   }
 
@@ -97,20 +104,20 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
 }
 
 void *player_data_receiver(void *p_receiver_params) {
-  ReceiverParams params = *((ReceiverParams *)p_receiver_params);
+  ReceiverParams *params = (ReceiverParams *)p_receiver_params;
   u8 buffer[BUFFER_SIZE] = {0};
 
   u8 action;
   u16 message_id;
 
-  while (recv(params.player->socket, buffer, sizeof(buffer), 0) > 0) {
+  while (recv(params->player->socket, buffer, sizeof(buffer), 0) > 0) {
     deserialize_header(buffer, &action, &message_id);
 
     // JOIN
     if (action == 0) {
-      printf("Received JOIN message from client (id=%d)\n", params.player_id);
-      deserialize_u32(params.player->color, buffer + 2);
-      params.player->has_joined = 1;
+      printf("Received JOIN message from client (id=%d)\n", params->player_id);
+      deserialize_u32(params->player->color, buffer + 2);
+      params->player->has_joined = 1;
       continue;
     }
 
@@ -121,37 +128,39 @@ void *player_data_receiver(void *p_receiver_params) {
       deserialize_f32(new_position.x, buffer + 2);
       deserialize_f32(new_position.y, buffer + 6);
 
-      pthread_mutex_lock(params.action_queue_mutex);
+      pthread_mutex_lock(params->action_queue_mutex);
 
       // Add move sent by client to action queue
-      enqueue(params.action_queue,
-              (ActionValue){.player_id = params.player_id, .message_id = message_id, .position = new_position});
-      params.player->last_message_id = message_id;
+      enqueue(params->action_queue,
+              (ActionValue){.player_id = params->player_id, .message_id = message_id, .position = new_position});
+      params->player->last_message_id = message_id;
 
-      pthread_mutex_unlock(params.action_queue_mutex);
+      pthread_mutex_unlock(params->action_queue_mutex);
     }
 
     // SPEED
     if (action == 2) {
-      if (params.player->speed_time == 0)
-        params.player->speed_time = sec_to_us(SPEED_TIME_SECONDS);
-      else if (params.player->speed_time > 0)
-        printf("Player %d already has speed actived\n", params.player_id);
+      if (params->player->speed_time == 0)
+        params->player->speed_time = sec_to_us(SPEED_TIME_SECONDS);
+      else if (params->player->speed_time > 0)
+        printf("Player %d already has speed actived\n", params->player_id);
       else
-        printf("Player %d needs to wait for cooldown to end\n", params.player_id);
-      params.player->last_message_id = message_id;
+        printf("Player %d needs to wait for cooldown to end\n", params->player_id);
+      params->player->last_message_id = message_id;
     }
   }
 
-  pthread_mutex_lock(params.player_count_mutex);
+  printf("Player %d disconnected\n", params->player_id);
+  pthread_mutex_lock(params->player_count_mutex);
 
-  (*params.player_count)--;
-  params.player->socket = 0;
-  params.player->thread = 0;
+  (*params->player_count)--;
+  params->player->socket = 0;
+  params->player->thread = 0;
 
-  printf("Client disconencted from server. Player count: %d\n", *params.player_count);
-  pthread_mutex_unlock(params.player_count_mutex);
+  printf("Client disconencted from server. Player count: %d\n", *params->player_count);
+  pthread_mutex_unlock(params->player_count_mutex);
 
+  free(p_receiver_params);
   return NULL;
 }
 
@@ -175,9 +184,13 @@ void *handle_game_update(void *p_state) {
     start = clock();
 
     pthread_mutex_lock(state->action_queue_mutex);
+    pthread_mutex_lock(state->player_state_mutex);
+
+    printf("Mutex lock\n");
 
     // Validates all moves send to the server since last tick
     while (*state->action_queue != NULL) {
+      printf("Action queue handler\n");
       ActionValue action = dequeue(state->action_queue);
 
       float distance = get_distance(action.position, state->players[action.player_id].position);
@@ -228,6 +241,7 @@ void *handle_game_update(void *p_state) {
       }
     }
 
+    printf("Start ball collision checking\n");
     // Checks collisions with balls
     for (int i = 0; i < MAX_BALLS; i++) {
       // Balls with position (0,0) are inactive
@@ -250,11 +264,13 @@ void *handle_game_update(void *p_state) {
       }
     }
 
+    printf("Start message serialization\n");
     u32 message_size = serialize_message(buffer, state);
-    for (int i = 0; i < MAX_PLAYERS; i++) {
+    for (u8 i = 0; i < MAX_PLAYERS; i++) {
       if (state->players[i].socket == 0)
         continue;
 
+      printf("Send message to player %d\n", i);
       // handle if speed is active or has cooldown
       if (state->players[i].speed_time != 0) {
         i8 is_active = state->players[i].speed_time > 0 ? 1 : -1;
@@ -271,11 +287,16 @@ void *handle_game_update(void *p_state) {
       // Id of client that the message is send to
       buffer[5] = i;
       serialize_header(buffer, 0, state->players[i].last_message_id);
+      printf("Serialized header\n");
       send(state->players[i].socket, buffer, message_size, 0);
+      printf("Message sent to %d, with size = %d, balls = %d, player = %d\n", state->players[i].socket, message_size,
+             state->balls_count, state->player_count);
     }
 
+    pthread_mutex_unlock(state->player_state_mutex);
     pthread_mutex_unlock(state->action_queue_mutex);
 
+    printf("Mutex unlock\n");
     // Calculates how much time it needs to sleep to complete a full tick
     tick_time = (clock() - start) / (f64)CLOCKS_PER_SEC;
     time_diff = 1.0 / TICKS_PER_SECOND - tick_time;
@@ -311,11 +332,21 @@ u32 serialize_message(u8 *buffer_start, State *state) {
     serialize_u32(buffer + 13, state->players[i].score);
 
     buffer += 17;
+
+    if (buffer - buffer_start > BUFFER_SIZE) {
+      perror("Buffer overflow\n");
+      exit(1);
+    }
   }
 
   for (u16 i = 0; i < MAX_BALLS; i++) {
     if (state->balls[i].position.x == 0 && state->balls[i].position.y == 0)
       continue;
+
+    if (buffer - buffer_start > BUFFER_SIZE) {
+      perror("Buffer overflow\n");
+      exit(1);
+    }
 
     serialize_f32(buffer, state->balls[i].position.x);
     serialize_f32(buffer + 4, state->balls[i].position.y);

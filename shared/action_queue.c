@@ -4,7 +4,7 @@
 #include "action_queue.h"
 
 void enqueue(ActionNode **head, ActionValue value) {
-  ActionNode *temp = (ActionNode *)malloc(sizeof(ActionNode));
+  ActionNode *temp = malloc(sizeof(ActionNode));
   if (!temp) {
     printf("Queue memory allocation error\n");
     return;

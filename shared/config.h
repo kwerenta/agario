@@ -8,7 +8,7 @@
 #define MAP_HEIGHT 480
 
 #define MAX_PLAYERS 4
-#define MAX_BALLS 1024
+#define MAX_BALLS 64
 
 #define SPEED_TIME_SECONDS 5
 #define SPEED_COOLDOWN_SECONDS 5

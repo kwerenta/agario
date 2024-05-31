@@ -26,6 +26,7 @@ typedef struct {
 typedef struct {
   ActionNode **action_queue;
   pthread_mutex_t *action_queue_mutex;
+  pthread_mutex_t *player_state_mutex;
   u8 player_count;
   u16 balls_count;
 

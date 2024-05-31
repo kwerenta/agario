@@ -34,10 +34,11 @@ int main() {
 
   State state = {.action_queue = &action_queue,
                  .action_queue_mutex = &action_queue_mutex,
+                 .player_state_mutex = &player_count_mutex,
                  .player_count = 0,
                  .balls_count = START_BALLS,
-                 .players = {0},
-                 .balls = {0}};
+                 .players = {{0}},
+                 .balls = {{{0}}}};
 
   for (int i = 0; i < START_BALLS; i++) {
     // TODO: Add check if position is free

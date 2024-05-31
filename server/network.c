@@ -189,102 +189,26 @@ void *handle_game_update(void *p_state) {
     pthread_mutex_lock(state->action_queue_mutex);
     pthread_mutex_lock(state->player_state_mutex);
 
-    // Validates all moves send to the server since last tick
+    // Validates all moves sent to the server since last tick
     while (*state->action_queue != NULL) {
       ActionValue action = dequeue(state->action_queue);
 
-      float distance = get_distance(action.position, state->players[action.player_id].position);
+      validate_move(&state->players[action.player_id], &action);
 
-      // Checks if move was possible
-      float speed_multiplier = state->players[action.player_id].speed_time > 0 ? SPEED_MULTIPLIER : 1;
-      // +0.1 to compensate any floating point arithmetic errors
-      if (distance <= (get_player_speed(state->players[action.player_id].score) * speed_multiplier + 0.1)) {
-        state->players[action.player_id].position = action.position;
-      } else {
-        printf("INCORRECT MOVE: Player %d, message %d (x=%f, y=%f)\n", action.player_id, action.message_id,
-               action.position.x, action.position.y);
-      }
-
-      // Checks collisions with other players
-      for (int i = 0; i < MAX_PLAYERS; i++) {
-        for (int j = i + 1; j < MAX_PLAYERS; j++) {
-          if (state->players[i].socket == 0 || state->players[j].socket == 0 || state->players[i].color == 0 ||
-              state->players[j].color == 0)
-            continue;
-
-          if (handle_player_collision(&state->players[i], &state->players[j]) == 1) {
-            printf("Player %d has been killed by player %d\n", i, j);
-            continue;
-          }
-
-          if (handle_player_collision(&state->players[j], &state->players[i]) == 1)
-            printf("Player %d has been killed by player %d\n", j, i);
-        }
-      }
+      handle_player_collisions(state);
     }
 
-    // Checks collisions with balls
-    for (int i = 0; i < MAX_BALLS; i++) {
-      // Balls with position (0,0) are inactive
-      if (state->balls[i].position.x == 0 && state->balls[i].position.y == 0)
-        continue;
+    handle_ball_collisions(state);
+    handle_ball_spawn(state);
 
-      for (int j = 0; j < MAX_PLAYERS; j++) {
-        if (state->players[j].socket == 0 || state->players[j].color == 0)
-          continue;
-
-        float distance = get_distance(state->balls[i].position, state->players[j].position);
-
-        // Check if ball is inside player
-        if (distance + BALL_SIZE / 2.0 <= get_player_radius(state->players[j].score)) {
-          state->players[j].score += BALL_SCORE;
-          state->balls[i].position.x = 0;
-          state->balls[i].position.y = 0;
-          state->balls_count--;
-        }
-      }
-    }
-
-    if (has_time_elapsed(&state->last_ball_spawn_time, sec_to_ms(BALL_SPAWN_TIME_SECONDS)) == 1 &&
-        state->balls_count < MAX_BALLS) {
-
-      for (int i = 0; i < MAX_BALLS; i++) {
-        if (state->balls[i].position.x != 0 || state->balls[i].position.y != 0)
-          continue;
-
-        state->balls[i].position.x = random_range(BALL_SIZE, MAP_WIDTH - BALL_SIZE);
-        state->balls[i].position.y = random_range(BALL_SIZE, MAP_HEIGHT - BALL_SIZE);
-        state->balls_count++;
-        break;
-      }
-    }
-
-    if (has_time_elapsed(&state->last_score_loss_time, sec_to_ms(SCORE_LOSS_TIME_SECONDS)) == 1) {
-      for (int i = 0; i < MAX_PLAYERS; i++) {
-        if (state->players[i].socket == 0 || state->players[i].color == 0 || state->players[i].score == 0)
-          continue;
-
-        state->players[i].score *= SCORE_LOSS_MULTIPLIER;
-      }
-    }
+    handle_score_loss(state);
 
     u32 message_size = serialize_message(buffer, state);
     for (u8 i = 0; i < MAX_PLAYERS; i++) {
       if (state->players[i].socket == 0)
         continue;
 
-      // handle if speed is active or has cooldown
-      if (state->players[i].speed_time != 0) {
-        i8 is_active = state->players[i].speed_time > 0 ? 1 : -1;
-        state->players[i].speed_time -= is_active * sec_to_us(1.0 / TICKS_PER_SECOND);
-
-        if (is_active == 1 && state->players[i].speed_time <= 0)
-          state->players[i].speed_time = -sec_to_us(SPEED_COOLDOWN_SECONDS);
-        else if (is_active == -1 && state->players[i].speed_time >= 0)
-          state->players[i].speed_time = 0;
-
-        // printf("Player %d speed time %d\n", i, state->players[i].speed_time);
-      }
+      handle_speed_time(&state->players[i]);
 
       // Id of client that the message is send to
       buffer[5] = i;

@@ -37,6 +37,14 @@ typedef struct {
 } State;
 
 // Check if player a is inside player b
-u8 handle_player_collision(Player *a, Player *b);
+u8 check_player_collision(Player *a, Player *b);
+
+void validate_move(Player *player, const ActionValue *action);
+
+void handle_player_collisions(State *state);
+void handle_ball_collisions(State *state);
+void handle_ball_spawn(State *state);
+void handle_score_loss(State *state);
+void handle_speed_time(Player *player);
 
 #endif

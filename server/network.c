@@ -10,6 +10,7 @@
 
 #include "../shared/action_queue.h"
 #include "../shared/config.h"
+#include "../shared/random.h"
 #include "../shared/serialization.h"
 #include "../shared/utils.h"
 
@@ -66,10 +67,12 @@ void accept_player(const int server_fd, State *state, pthread_mutex_t *player_co
 
   Player *player = &state->players[client_id];
 
+  u32 radius = get_player_radius(0);
+  Position position = {.x = random_range(radius, MAP_WIDTH - radius), .y = random_range(radius, MAP_HEIGHT - radius)};
+
   *player = (Player){.color = 0,
-                     // TEMP: Test purposes only
-                     .position = {.x = client_id % 2 == 0 ? 0 : 200, .y = client_id % 2 == 0 ? 0 : 200},
-                     .score = client_id % MAX_PLAYERS,
+                     .position = position,
+                     .score = 0,
                      .speed_time = sec_to_us(DEFAULT_SPEED_TIME_SECONDS),
                      .has_joined = 0,
                      .socket = client_fd,

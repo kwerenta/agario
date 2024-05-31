@@ -173,7 +173,7 @@ void *handle_game_update(void *p_state) {
   u8 buffer[BUFFER_SIZE] = {0};
 
   clock_t start;
-  struct timespec ts;
+  struct timespec ts, current_time;
   f64 tick_time, time_diff;
 
   for (;;) {
@@ -259,6 +259,25 @@ void *handle_game_update(void *p_state) {
           state->balls[i].position.y = 0;
           state->balls_count--;
         }
+      }
+    }
+
+    clock_gettime(CLOCK_REALTIME, &current_time);
+    i32 elapsed_seconds = current_time.tv_sec - state->last_ball_spawn_time.tv_sec;
+    i32 elapsed_nanoseconds = current_time.tv_nsec - state->last_ball_spawn_time.tv_nsec;
+
+    if (elapsed_seconds > BALL_SPAWN_TIME_SECONDS ||
+        (elapsed_seconds == BALL_SPAWN_TIME_SECONDS && elapsed_nanoseconds >= 0) && state->balls_count < MAX_BALLS) {
+      state->last_ball_spawn_time = current_time;
+
+      for (int i = 0; i < MAX_BALLS; i++) {
+        if (state->balls[i].position.x != 0 || state->balls[i].position.y != 0)
+          continue;
+
+        state->balls[i].position.x = random_range(BALL_SIZE, MAP_WIDTH - BALL_SIZE);
+        state->balls[i].position.y = random_range(BALL_SIZE, MAP_HEIGHT - BALL_SIZE);
+        state->balls_count++;
+        break;
       }
     }
 

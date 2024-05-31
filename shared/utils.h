@@ -3,6 +3,7 @@
 
 #include "types.h"
 
+#define sec_to_ms(sec) sec * 1000
 #define sec_to_us(sec) sec * 1000 * 1000
 #define sec_to_ns(sec) sec * 1000 * 1000 * 1000
 #define ms_to_us(ms) ms * 1000

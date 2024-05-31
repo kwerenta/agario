@@ -7,6 +7,7 @@
 
 #include "../shared/action_queue.h"
 #include "../shared/config.h"
+#include "../shared/random.h"
 #include "../shared/types.h"
 #include "../shared/utils.h"
 
@@ -50,17 +51,17 @@ int main(int argc, char **argv) {
                  .player_state_mutex = &player_count_mutex,
                  .player_count = 0,
                  .balls_count = START_BALLS,
+                 .last_ball_spawn_time = {.tv_sec = 0, .tv_nsec = 0},
                  .players = {{0}},
                  .balls = {{{0}}}};
 
   for (int i = 0; i < START_BALLS; i++) {
     // TODO: Add check if position is free
-    state.balls[i].position.x = (float)rand() / ((float)RAND_MAX / MAP_WIDTH);
-    state.balls[i].position.y = (float)rand() / ((float)RAND_MAX / MAP_HEIGHT);
+    state.balls[i].position.x = random_range(BALL_SIZE, MAP_WIDTH - BALL_SIZE);
+    state.balls[i].position.y = random_range(BALL_SIZE, MAP_HEIGHT - BALL_SIZE);
   }
 
   u8 has_started = 0;
-
   pthread_t game_thread;
 
   for (;;) {

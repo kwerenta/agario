@@ -150,14 +150,13 @@ void *player_data_receiver(void *p_receiver_params) {
     }
   }
 
-  printf("Player %d disconnected\n", params->player_id);
   pthread_mutex_lock(params->player_count_mutex);
 
   (*params->player_count)--;
   params->player->socket = 0;
   params->player->thread = 0;
 
-  printf("Client disconencted from server. Player count: %d\n", *params->player_count);
+  printf("Player %d disconencted from server. Players left: %d\n", params->player_id, *params->player_count);
   pthread_mutex_unlock(params->player_count_mutex);
 
   free(p_receiver_params);
@@ -186,11 +185,8 @@ void *handle_game_update(void *p_state) {
     pthread_mutex_lock(state->action_queue_mutex);
     pthread_mutex_lock(state->player_state_mutex);
 
-    printf("Mutex lock\n");
-
     // Validates all moves send to the server since last tick
     while (*state->action_queue != NULL) {
-      printf("Action queue handler\n");
       ActionValue action = dequeue(state->action_queue);
 
       float distance = get_distance(action.position, state->players[action.player_id].position);
@@ -241,7 +237,6 @@ void *handle_game_update(void *p_state) {
       }
     }
 
-    printf("Start ball collision checking\n");
     // Checks collisions with balls
     for (int i = 0; i < MAX_BALLS; i++) {
       // Balls with position (0,0) are inactive
@@ -264,13 +259,11 @@ void *handle_game_update(void *p_state) {
       }
     }
 
-    printf("Start message serialization\n");
     u32 message_size = serialize_message(buffer, state);
     for (u8 i = 0; i < MAX_PLAYERS; i++) {
       if (state->players[i].socket == 0)
         continue;
 
-      printf("Send message to player %d\n", i);
       // handle if speed is active or has cooldown
       if (state->players[i].speed_time != 0) {
         i8 is_active = state->players[i].speed_time > 0 ? 1 : -1;
@@ -287,16 +280,12 @@ void *handle_game_update(void *p_state) {
       // Id of client that the message is send to
       buffer[5] = i;
       serialize_header(buffer, 0, state->players[i].last_message_id);
-      printf("Serialized header\n");
       send(state->players[i].socket, buffer, message_size, 0);
-      printf("Message sent to %d, with size = %d, balls = %d, player = %d\n", state->players[i].socket, message_size,
-             state->balls_count, state->player_count);
     }
 
     pthread_mutex_unlock(state->player_state_mutex);
     pthread_mutex_unlock(state->action_queue_mutex);
 
-    printf("Mutex unlock\n");
     // Calculates how much time it needs to sleep to complete a full tick
     tick_time = (clock() - start) / (f64)CLOCKS_PER_SEC;
     time_diff = 1.0 / TICKS_PER_SECOND - tick_time;

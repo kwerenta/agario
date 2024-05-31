@@ -35,4 +35,7 @@ typedef struct {
   Ball balls[MAX_BALLS];
 } State;
 
+// Check if player a is inside player b
+u8 handle_player_collision(Player *a, Player *b);
+
 #endif

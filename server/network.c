@@ -15,6 +15,7 @@
 #include "../shared/utils.h"
 
 #include "network.h"
+#include "state.h"
 
 const int setup_server(u16 port) {
   const int fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -211,31 +212,13 @@ void *handle_game_update(void *p_state) {
               state->players[j].color == 0)
             continue;
 
-          float distance = get_distance(state->players[i].position, state->players[j].position);
-
-          u32 player_i_radius = get_player_radius(state->players[i].score);
-          u32 player_j_radius = get_player_radius(state->players[j].score);
-
-          // Checks if player[i] is inside player[j]
-          if (distance + player_i_radius <= player_j_radius) {
+          if (handle_player_collision(&state->players[i], &state->players[j]) == 1) {
             printf("Player %d has been killed by player %d\n", i, j);
-
-            // TODO: Sent DIE action to the client
-
-            state->players[i].score = 0;
-            state->players[i].color = 0;
             continue;
           }
 
-          // Checks if player[j] is inside player[i]
-          if (distance + player_j_radius <= player_i_radius) {
+          if (handle_player_collision(&state->players[j], &state->players[i]) == 1)
             printf("Player %d has been killed by player %d\n", j, i);
-
-            // TODO: Sent DIE action to the client
-
-            state->players[j].score = 0;
-            state->players[j].color = 0;
-          }
         }
       }
     }
